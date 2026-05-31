@@ -1963,12 +1963,9 @@ function rawItemFrom(it) {
 
 async function doRun(vnode, self, kind) {
   const fn = kind === "play" ? api.todayPlay : kind === "stop" ? api.todayStop : api.todaySkip;
-  // Pass at_min only when the cursor is detached from now; otherwise the server uses its own clock.
+  // Always send the cursor minute: the server clock has no timezone and would act at the wrong minute.
   const s = vnode.state;
-  const atMin =
-    s.cursorMin != null && s.nowMin != null && s.cursorMin !== s.nowMin
-      ? s.cursorMin
-      : undefined;
+  const atMin = s.cursorMin != null ? s.cursorMin : s.nowMin;
   try {
     const updated = await fn(atMin);
     vnode.state.day = updated;

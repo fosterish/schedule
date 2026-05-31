@@ -69,11 +69,28 @@ export class AuthError extends Error {
   }
 }
 
-// Builds the `/api/day/today/<verb>` URL, optionally appending the `at_min` query param.
+// The server has no reliable timezone (now_local fails under tokio → UTC), so every
+// "today" request carries the client's local date and raw minute-of-day [0,1439].
+function clientClock() {
+  const d = new Date();
+  const today =
+    d.getFullYear() +
+    "-" +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(d.getDate()).padStart(2, "0");
+  return { today, now_min: d.getHours() * 60 + d.getMinutes() };
+}
+
+// Builds the `/api/day/today/<verb>` URL with the client clock and optional `at_min`.
 function runUrl(verb, atMin) {
-  const base = `/api/day/today/${verb}`;
-  if (atMin == null) return base;
-  return `${base}?at_min=${encodeURIComponent(atMin)}`;
+  const c = clientClock();
+  const params = new URLSearchParams({
+    today: c.today,
+    now_min: String(c.now_min),
+  });
+  if (atMin != null) params.set("at_min", String(atMin));
+  return `/api/day/today/${verb}?${params.toString()}`;
 }
 
 export const api = {
@@ -170,9 +187,16 @@ export const api = {
     request("POST", `/api/calendar/overrides/${date}/fork-weekday-template`),
 
   // day
-  day: (date) =>
-    request("GET", `/api/day${date ? "?date=" + encodeURIComponent(date) : ""}`),
-  // `atMin` overrides the server's current minute, letting the action run against a client-chosen time.
+  day: (date) => {
+    const c = clientClock();
+    const params = new URLSearchParams({
+      today: c.today,
+      now_min: String(c.now_min),
+    });
+    if (date) params.set("date", date);
+    return request("GET", `/api/day?${params.toString()}`);
+  },
+  // `atMin` is the cursor minute the action runs at; runUrl also sends the client's local clock.
   todayPlay: (atMin) => request("POST", runUrl("play", atMin)),
   todayStop: (atMin) => request("POST", runUrl("stop", atMin)),
   todaySkip: (atMin) => request("POST", runUrl("skip", atMin)),

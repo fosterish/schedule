@@ -20,15 +20,22 @@ pub fn router() -> Router<AppState> {
         .route("/day/today/skip", post(today_skip))
 }
 
-/// Optional cursor minute overriding the server clock; query param, validated 0..=2879.
+/// Cursor minute the action runs at (0..=2879), plus the client's local clock (the
+/// server's wall clock has no usable timezone in a multi-threaded process).
 #[derive(Debug, Deserialize, Default)]
 pub struct RunQuery {
     pub at_min: Option<i64>,
+    pub today: Option<String>,
+    pub now_min: Option<i64>,
 }
 
+/// `date` is the day being viewed; `today`/`now_min` carry the client's local clock,
+/// since the server can't know the user's timezone (see today_local / current_minute_of_day).
 #[derive(Debug, Deserialize)]
 pub struct DayQuery {
     pub date: Option<String>,
+    pub today: Option<String>,
+    pub now_min: Option<i64>,
 }
 
 async fn get_day(
@@ -36,14 +43,15 @@ async fn get_day(
     user: AuthUser,
     Query(q): Query<DayQuery>,
 ) -> AppResult<Json<DayView>> {
-    let today = today_local()?;
+    let today = resolve_today(&q.today)?;
+    let now_min = resolve_now_min(q.now_min)?;
     let date = match q.date {
         Some(s) => parse_date(&s)?,
         None => today,
     };
     if date == today {
         let (view, _picked_date, _yesterday_overflow) =
-            pick_today_view(&state.pool, user.0).await?;
+            pick_today_view(&state.pool, user.0, today, now_min).await?;
         return Ok(Json(view));
     }
     let view = resolve_day(&state.pool, user.0, date).await?;
@@ -54,10 +62,10 @@ async fn get_day(
 pub async fn pick_today_view(
     pool: &sqlx::SqlitePool,
     user_id: i64,
+    today: Date,
+    now_min: i64,
 ) -> AppResult<(DayView, Date, bool)> {
-    let today = today_local()?;
     let yesterday = today - Duration::days(1);
-    let now_min = current_minute_of_day()?;
 
     // Today counts only a date override; weekday template is empty-state metadata only.
     let today_override_sid: Option<(i64,)> = sqlx::query_as(
@@ -147,12 +155,37 @@ pub fn parse_date(s: &str) -> AppResult<Date> {
     Date::parse(s, fmt).map_err(|_| AppError::bad_request("invalid date; expected YYYY-MM-DD"))
 }
 
+/// Client-supplied local date, else the server clock. now_local() can't read an offset
+/// in a multi-threaded process, so the fallback is UTC and only approximate.
+fn resolve_today(param: &Option<String>) -> AppResult<Date> {
+    match param {
+        Some(s) => parse_date(s),
+        None => today_local(),
+    }
+}
+
+/// Client-supplied local minute-of-day [0,1439], else the (UTC-approximate) server clock.
+fn resolve_now_min(param: Option<i64>) -> AppResult<i64> {
+    match param {
+        Some(v) => {
+            if !(0..=1439).contains(&v) {
+                return Err(AppError::bad_request("now_min must be in [0, 1439]"));
+            }
+            Ok(v)
+        }
+        None => current_minute_of_day(),
+    }
+}
+
+/// Server-clock fallback only. Returns UTC in a multi-threaded process (now_local fails),
+/// so callers should prefer a client-supplied date.
 pub fn today_local() -> AppResult<Date> {
     OffsetDateTime::now_local()
         .map(|odt| odt.date())
         .or_else(|_| Ok::<_, AppError>(OffsetDateTime::now_utc().date()))
 }
 
+/// Server-clock fallback only; UTC in a multi-threaded process. Prefer a client value.
 pub fn current_minute_of_day() -> AppResult<i64> {
     let now = OffsetDateTime::now_local().unwrap_or_else(|_| OffsetDateTime::now_utc());
     Ok(now.hour() as i64 * 60 + now.minute() as i64)
@@ -197,17 +230,19 @@ async fn run_today(
     action: RunAction,
     q: RunQuery,
 ) -> AppResult<Json<DayView>> {
+    let today = resolve_today(&q.today)?;
+    let clock_now = resolve_now_min(q.now_min)?;
     // Targets the active schedule (today or yesterday overflow); requires an existing override, else the 409 fires.
     let (_, target_date, yesterday_overflow) =
-        pick_today_view(&state.pool, user.0).await?;
-    let server_now_min = if yesterday_overflow {
-        current_minute_of_day()? + 1440
+        pick_today_view(&state.pool, user.0, today, clock_now).await?;
+    let fallback_now_min = if yesterday_overflow {
+        clock_now + 1440
     } else {
-        current_minute_of_day()?
+        clock_now
     };
-    // Client cursor time overrides the server clock; clamp to a two-day band against buggy clients.
+    // The cursor minute the user acted at; clamp to a two-day band against buggy clients.
     let now_min = match q.at_min {
-        None => server_now_min,
+        None => fallback_now_min,
         Some(v) => {
             if !(0..=2879).contains(&v) {
                 return Err(AppError::bad_request(
@@ -345,7 +380,7 @@ async fn run_today(
     tx.commit().await?;
 
     // Re-pick the active view so the response matches GET /day's selection.
-    let (view, _, _) = pick_today_view(&state.pool, user.0).await?;
+    let (view, _, _) = pick_today_view(&state.pool, user.0, today, clock_now).await?;
     Ok(Json(view))
 }
 
