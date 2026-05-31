@@ -94,9 +94,20 @@ pub async fn snapshot_item(
     id: i64,
 ) -> AppResult<Option<serde_json::Value>> {
     let row: Option<(
-        i64, i64, f64, Option<i64>, Option<i64>, i64,
-        bool, Option<String>, Option<String>, String,
-        Option<i64>, i64, Option<i64>, i64,
+        i64,
+        i64,
+        f64,
+        Option<i64>,
+        Option<i64>,
+        i64,
+        bool,
+        Option<String>,
+        Option<String>,
+        String,
+        Option<i64>,
+        i64,
+        Option<i64>,
+        i64,
     )> = sqlx::query_as(
         "SELECT si.id, si.schedule_id, si.position, si.start_min, si.end_min,
                 si.duration_target, si.use_inline,
@@ -271,7 +282,10 @@ pub async fn task_dependencies_for(
         return Ok(Vec::new());
     }
     // sqlx doesn't expand a slice, so build a static `IN (?, ?, …)` placeholder list.
-    let placeholders = (0..task_ids.len()).map(|_| "?").collect::<Vec<_>>().join(",");
+    let placeholders = (0..task_ids.len())
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(",");
     let sql = format!(
         "SELECT blocked_id, blocker_id FROM task_dependencies
            WHERE blocked_id IN ({0}) OR blocker_id IN ({0})",
@@ -425,10 +439,7 @@ pub async fn apply_ops(
             }
             SubOp::InsertItem { row } => {
                 // Re-insert with the original id; default color to "blue" when a snapshot lacks it so the CHECK passes.
-                let color = row
-                    .get("color")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("blue");
+                let color = row.get("color").and_then(|v| v.as_str()).unwrap_or("blue");
                 sqlx::query(
                     "INSERT INTO schedule_items
                      (id, schedule_id, position, start_min, end_min, duration_target,
@@ -441,13 +452,25 @@ pub async fn apply_ops(
                 .bind(row.get("position").and_then(|v| v.as_f64()))
                 .bind(row.get("start_min").and_then(|v| v.as_i64()))
                 .bind(row.get("end_min").and_then(|v| v.as_i64()))
-                .bind(row.get("duration_target").and_then(|v| v.as_i64()).unwrap_or(0))
-                .bind(row.get("use_inline").and_then(|v| v.as_bool()).unwrap_or(true))
+                .bind(
+                    row.get("duration_target")
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0),
+                )
+                .bind(
+                    row.get("use_inline")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true),
+                )
                 .bind(row.get("inline_label").and_then(|v| v.as_str()))
                 .bind(row.get("inline_description").and_then(|v| v.as_str()))
                 .bind(color)
                 .bind(row.get("project_id").and_then(|v| v.as_i64()))
-                .bind(row.get("project_rank").and_then(|v| v.as_i64()).unwrap_or(1))
+                .bind(
+                    row.get("project_rank")
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(1),
+                )
                 .bind(row.get("task_id").and_then(|v| v.as_i64()))
                 .bind(row.get("task_rank").and_then(|v| v.as_i64()).unwrap_or(1))
                 .execute(&mut **tx)
@@ -507,13 +530,11 @@ pub async fn apply_ops(
                     time::macros::format_description!("[year]-[month]-[day]"),
                 )
                 .map_err(|_| AppError::bad_request("bad date"))?;
-                sqlx::query(
-                    "DELETE FROM calendar_date_overrides WHERE user_id = ? AND date = ?",
-                )
-                .bind(user_id)
-                .bind(d)
-                .execute(&mut **tx)
-                .await?;
+                sqlx::query("DELETE FROM calendar_date_overrides WHERE user_id = ? AND date = ?")
+                    .bind(user_id)
+                    .bind(d)
+                    .execute(&mut **tx)
+                    .await?;
             }
             SubOp::InsertSchedule { row } => {
                 // Re-insert with original id/user_id so bindings and items reattach; missing fields fall back to create-time defaults.
@@ -543,19 +564,20 @@ pub async fn apply_ops(
                 .await?;
             }
             SubOp::DeleteSchedule { id } => {
-                let n = sqlx::query(
-                    "DELETE FROM schedules WHERE id = ? AND user_id = ?",
-                )
-                .bind(*id)
-                .bind(user_id)
-                .execute(&mut **tx)
-                .await?
-                .rows_affected();
+                let n = sqlx::query("DELETE FROM schedules WHERE id = ? AND user_id = ?")
+                    .bind(*id)
+                    .bind(user_id)
+                    .execute(&mut **tx)
+                    .await?
+                    .rows_affected();
                 if n == 0 {
                     return Err(AppError::not_found("schedule"));
                 }
             }
-            SubOp::InsertWeekdayBinding { weekday, schedule_id } => {
+            SubOp::InsertWeekdayBinding {
+                weekday,
+                schedule_id,
+            } => {
                 // Upsert: ON CONFLICT DO UPDATE restores both deleted bindings and rows nulled by the cascade.
                 sqlx::query(
                     "INSERT INTO calendar_weekday_bindings
@@ -581,18 +603,16 @@ pub async fn apply_ops(
             }
             SubOp::InsertProject { row } => {
                 // Re-insert with original id/created_at so referencing rows reattach on undo; missing fields fall back to defaults.
-                let archived_at: Option<time::OffsetDateTime> =
-                    match row.get("archived_at") {
-                        Some(v) if v.is_null() => None,
-                        Some(v) => v.as_str().map(parse_dt).transpose()?,
-                        None => None,
-                    };
-                let created_at: Option<time::OffsetDateTime> =
-                    match row.get("created_at") {
-                        Some(v) if v.is_null() => None,
-                        Some(v) => v.as_str().map(parse_dt).transpose()?,
-                        None => None,
-                    };
+                let archived_at: Option<time::OffsetDateTime> = match row.get("archived_at") {
+                    Some(v) if v.is_null() => None,
+                    Some(v) => v.as_str().map(parse_dt).transpose()?,
+                    None => None,
+                };
+                let created_at: Option<time::OffsetDateTime> = match row.get("created_at") {
+                    Some(v) if v.is_null() => None,
+                    Some(v) => v.as_str().map(parse_dt).transpose()?,
+                    None => None,
+                };
                 let color = row
                     .get("color")
                     .and_then(|v| v.as_str())
@@ -602,8 +622,7 @@ pub async fn apply_ops(
                     .and_then(|v| v.as_str())
                     .unwrap_or("Untitled project");
                 let value = row.get("value").and_then(|v| v.as_f64()).unwrap_or(1.0);
-                let time_cost =
-                    row.get("time_cost").and_then(|v| v.as_f64()).unwrap_or(1.0);
+                let time_cost = row.get("time_cost").and_then(|v| v.as_f64()).unwrap_or(1.0);
                 let id = row.get("id").and_then(|v| v.as_i64());
                 // Omit created_at when None so the column DEFAULT fires for snapshots that lack it.
                 if let Some(ca) = created_at {
@@ -657,14 +676,12 @@ pub async fn apply_ops(
                         .await?;
                 }
                 if let Some(v) = fields.get("time_cost") {
-                    sqlx::query(
-                        "UPDATE projects SET time_cost = ? WHERE id = ? AND user_id = ?",
-                    )
-                    .bind(v.as_f64().unwrap_or(1.0))
-                    .bind(*id)
-                    .bind(user_id)
-                    .execute(&mut **tx)
-                    .await?;
+                    sqlx::query("UPDATE projects SET time_cost = ? WHERE id = ? AND user_id = ?")
+                        .bind(v.as_f64().unwrap_or(1.0))
+                        .bind(*id)
+                        .bind(user_id)
+                        .execute(&mut **tx)
+                        .await?;
                 }
                 if let Some(v) = fields.get("color") {
                     sqlx::query("UPDATE projects SET color = ? WHERE id = ? AND user_id = ?")
@@ -701,37 +718,38 @@ pub async fn apply_ops(
                 }
             }
             SubOp::DeleteProject { id } => {
-                let n = sqlx::query(
-                    "DELETE FROM projects WHERE id = ? AND user_id = ?",
-                )
-                .bind(*id)
-                .bind(user_id)
-                .execute(&mut **tx)
-                .await?
-                .rows_affected();
+                let n = sqlx::query("DELETE FROM projects WHERE id = ? AND user_id = ?")
+                    .bind(*id)
+                    .bind(user_id)
+                    .execute(&mut **tx)
+                    .await?
+                    .rows_affected();
                 if n == 0 {
                     return Err(AppError::not_found("project"));
                 }
             }
             SubOp::InsertTask { row } => {
-                let completed_at: Option<time::OffsetDateTime> =
-                    match row.get("completed_at") {
-                        Some(v) if v.is_null() => None,
-                        Some(v) => v.as_str().map(parse_dt).transpose()?,
-                        None => None,
-                    };
-                let created_at: Option<time::OffsetDateTime> =
-                    match row.get("created_at") {
-                        Some(v) if v.is_null() => None,
-                        Some(v) => v.as_str().map(parse_dt).transpose()?,
-                        None => None,
-                    };
+                let completed_at: Option<time::OffsetDateTime> = match row.get("completed_at") {
+                    Some(v) if v.is_null() => None,
+                    Some(v) => v.as_str().map(parse_dt).transpose()?,
+                    None => None,
+                };
+                let created_at: Option<time::OffsetDateTime> = match row.get("created_at") {
+                    Some(v) if v.is_null() => None,
+                    Some(v) => v.as_str().map(parse_dt).transpose()?,
+                    None => None,
+                };
                 let id = row.get("id").and_then(|v| v.as_i64());
                 let project_id = row.get("project_id").and_then(|v| v.as_i64());
-                let name = row.get("name").and_then(|v| v.as_str()).unwrap_or("New task");
+                let name = row
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("New task");
                 let description = row.get("description").and_then(|v| v.as_str());
-                let list_order =
-                    row.get("list_order").and_then(|v| v.as_f64()).unwrap_or(1.0);
+                let list_order = row
+                    .get("list_order")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(1.0);
                 if let Some(ca) = created_at {
                     sqlx::query(
                         "INSERT INTO tasks (id, project_id, name, description,
@@ -838,7 +856,10 @@ pub async fn apply_ops(
                     return Err(AppError::not_found("task"));
                 }
             }
-            SubOp::InsertTaskDep { blocked_id, blocker_id } => {
+            SubOp::InsertTaskDep {
+                blocked_id,
+                blocker_id,
+            } => {
                 // INSERT OR IGNORE so re-asserting an already-present edge is a no-op, not an error.
                 sqlx::query(
                     "INSERT OR IGNORE INTO task_dependencies (blocked_id, blocker_id)
@@ -849,7 +870,10 @@ pub async fn apply_ops(
                 .execute(&mut **tx)
                 .await?;
             }
-            SubOp::DeleteTaskDep { blocked_id, blocker_id } => {
+            SubOp::DeleteTaskDep {
+                blocked_id,
+                blocker_id,
+            } => {
                 sqlx::query(
                     "DELETE FROM task_dependencies WHERE blocked_id = ? AND blocker_id = ?",
                 )
@@ -924,7 +948,10 @@ mod tests {
             .connect_with(opts)
             .await
             .expect("connect");
-        sqlx::migrate!("./migrations").run(&pool).await.expect("migrate");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
         pool
     }
 
@@ -947,12 +974,7 @@ mod tests {
         row.0
     }
 
-    async fn count2(
-        pool: &SqlitePool,
-        sql: &'static str,
-        a: i64,
-        b: i64,
-    ) -> i64 {
+    async fn count2(pool: &SqlitePool, sql: &'static str, a: i64, b: i64) -> i64 {
         let row: (i64,) = sqlx::query_as(sql)
             .bind(a)
             .bind(b)
@@ -986,7 +1008,10 @@ mod tests {
         .fetch_one(&mut *tx)
         .await
         .unwrap();
-        let snap = snapshot_project(&mut tx, user_id, pid).await.unwrap().unwrap();
+        let snap = snapshot_project(&mut tx, user_id, pid)
+            .await
+            .unwrap()
+            .unwrap();
         record_history(
             &mut tx,
             user_id,
@@ -998,7 +1023,15 @@ mod tests {
         .await
         .unwrap();
         tx.commit().await.unwrap();
-        assert_eq!(count(&pool, "SELECT COUNT(*) FROM projects WHERE user_id = ?", user_id).await, 1);
+        assert_eq!(
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM projects WHERE user_id = ?",
+                user_id
+            )
+            .await,
+            1
+        );
 
         // Undo: project disappears.
         let mut tx = pool.begin().await.unwrap();
@@ -1013,7 +1046,15 @@ mod tests {
         let ops: Vec<SubOp> = serde_json::from_str(&backward).unwrap();
         apply_ops(&mut tx, user_id, &ops).await.unwrap();
         tx.commit().await.unwrap();
-        assert_eq!(count(&pool, "SELECT COUNT(*) FROM projects WHERE user_id = ?", user_id).await, 0);
+        assert_eq!(
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM projects WHERE user_id = ?",
+                user_id
+            )
+            .await,
+            0
+        );
 
         // Redo: project comes back with the original id.
         let mut tx = pool.begin().await.unwrap();
@@ -1028,13 +1069,11 @@ mod tests {
         let ops: Vec<SubOp> = serde_json::from_str(&forward).unwrap();
         apply_ops(&mut tx, user_id, &ops).await.unwrap();
         tx.commit().await.unwrap();
-        let (back_id,): (i64,) = sqlx::query_as(
-            "SELECT id FROM projects WHERE user_id = ?",
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (back_id,): (i64,) = sqlx::query_as("SELECT id FROM projects WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(back_id, pid, "redo restores the original id");
     }
 
@@ -1137,13 +1176,11 @@ mod tests {
         tx.commit().await.unwrap();
 
         async fn bounds(pool: &SqlitePool, id: i64) -> (i64, i64) {
-            sqlx::query_as::<_, (i64, i64)>(
-                "SELECT start_min, end_min FROM schedules WHERE id = ?",
-            )
-            .bind(id)
-            .fetch_one(pool)
-            .await
-            .unwrap()
+            sqlx::query_as::<_, (i64, i64)>("SELECT start_min, end_min FROM schedules WHERE id = ?")
+                .bind(id)
+                .fetch_one(pool)
+                .await
+                .unwrap()
         }
         assert_eq!(bounds(&pool, sid).await, (540, 1200));
 
@@ -1213,11 +1250,19 @@ mod tests {
 
         // Snapshot the subtree before the cascade fires, like `routes::projects::delete_project`.
         let mut tx = pool.begin().await.unwrap();
-        let project_snap = snapshot_project(&mut tx, user_id, pid).await.unwrap().unwrap();
+        let project_snap = snapshot_project(&mut tx, user_id, pid)
+            .await
+            .unwrap()
+            .unwrap();
         let task_ids = task_ids_for_project(&mut tx, user_id, pid).await.unwrap();
         let mut task_snaps: Vec<serde_json::Value> = Vec::new();
         for tid in &task_ids {
-            task_snaps.push(snapshot_task(&mut tx, user_id, *tid).await.unwrap().unwrap());
+            task_snaps.push(
+                snapshot_task(&mut tx, user_id, *tid)
+                    .await
+                    .unwrap()
+                    .unwrap(),
+            );
         }
         let deps = task_dependencies_for(&mut tx, &task_ids).await.unwrap();
         sqlx::query("DELETE FROM projects WHERE id = ?")
@@ -1231,7 +1276,10 @@ mod tests {
             backward.push(SubOp::InsertTask { row: s });
         }
         for (b, br) in deps {
-            backward.push(SubOp::InsertTaskDep { blocked_id: b, blocker_id: br });
+            backward.push(SubOp::InsertTaskDep {
+                blocked_id: b,
+                blocker_id: br,
+            });
         }
         record_history(
             &mut tx,
@@ -1244,7 +1292,15 @@ mod tests {
         .await
         .unwrap();
         tx.commit().await.unwrap();
-        assert_eq!(count(&pool, "SELECT COUNT(*) FROM projects WHERE user_id = ?", user_id).await, 0);
+        assert_eq!(
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM projects WHERE user_id = ?",
+                user_id
+            )
+            .await,
+            0
+        );
         assert_eq!(count(&pool, "SELECT COUNT(*) FROM tasks t JOIN projects p ON p.id = t.project_id WHERE p.user_id = ?", user_id).await, 0);
 
         // Undo restores project, both tasks, and the dep edge.
@@ -1283,7 +1339,15 @@ mod tests {
             .await
             .unwrap();
         tx.commit().await.unwrap();
-        assert_eq!(count(&pool, "SELECT COUNT(*) FROM projects WHERE user_id = ?", user_id).await, 0);
+        assert_eq!(
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM projects WHERE user_id = ?",
+                user_id
+            )
+            .await,
+            0
+        );
     }
 
     /// Bulk-delete completed tasks in one composite entry; a single undo restores them and the referencing dependency edge.
@@ -1339,9 +1403,16 @@ mod tests {
         let completed_ids = vec![c1, c2];
         let mut task_snaps: Vec<serde_json::Value> = Vec::new();
         for tid in &completed_ids {
-            task_snaps.push(snapshot_task(&mut tx, user_id, *tid).await.unwrap().unwrap());
+            task_snaps.push(
+                snapshot_task(&mut tx, user_id, *tid)
+                    .await
+                    .unwrap()
+                    .unwrap(),
+            );
         }
-        let deps = task_dependencies_for(&mut tx, &completed_ids).await.unwrap();
+        let deps = task_dependencies_for(&mut tx, &completed_ids)
+            .await
+            .unwrap();
         for tid in &completed_ids {
             sqlx::query("DELETE FROM tasks WHERE id = ?")
                 .bind(*tid)
@@ -1358,7 +1429,10 @@ mod tests {
             backward.push(SubOp::InsertTask { row: s });
         }
         for (b, br) in deps {
-            backward.push(SubOp::InsertTaskDep { blocked_id: b, blocker_id: br });
+            backward.push(SubOp::InsertTaskDep {
+                blocked_id: b,
+                blocker_id: br,
+            });
         }
         record_history(
             &mut tx,
@@ -1385,7 +1459,10 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(n_deps.0, 0, "edge to a deleted completed task cascaded away");
+        assert_eq!(
+            n_deps.0, 0,
+            "edge to a deleted completed task cascaded away"
+        );
 
         // A SINGLE undo restores both completed tasks and the edge.
         let mut tx = pool.begin().await.unwrap();
@@ -1450,13 +1527,12 @@ mod tests {
         .await
         .unwrap();
         tx.commit().await.unwrap();
-        let (name, completed): (String, Option<time::OffsetDateTime>) = sqlx::query_as(
-            "SELECT name, completed_at FROM tasks WHERE id = ?",
-        )
-        .bind(tid)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (name, completed): (String, Option<time::OffsetDateTime>) =
+            sqlx::query_as("SELECT name, completed_at FROM tasks WHERE id = ?")
+                .bind(tid)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(name, "renamed");
         assert!(completed.is_some());
 
@@ -1472,20 +1548,21 @@ mod tests {
         .await
         .unwrap();
         tx.commit().await.unwrap();
-        let (name, completed): (String, Option<time::OffsetDateTime>) = sqlx::query_as(
-            "SELECT name, completed_at FROM tasks WHERE id = ?",
-        )
-        .bind(tid)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (name, completed): (String, Option<time::OffsetDateTime>) =
+            sqlx::query_as("SELECT name, completed_at FROM tasks WHERE id = ?")
+                .bind(tid)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(name, "orig");
         assert!(completed.is_none());
 
         // Delete + InsertTask round trip preserves id.
         let mut tx = pool.begin().await.unwrap();
         let snap = snapshot_task(&mut tx, user_id, tid).await.unwrap().unwrap();
-        apply_ops(&mut tx, user_id, &[SubOp::DeleteTask { id: tid }]).await.unwrap();
+        apply_ops(&mut tx, user_id, &[SubOp::DeleteTask { id: tid }])
+            .await
+            .unwrap();
         tx.commit().await.unwrap();
         assert_eq!(
             count2(
@@ -1500,7 +1577,9 @@ mod tests {
         );
 
         let mut tx = pool.begin().await.unwrap();
-        apply_ops(&mut tx, user_id, &[SubOp::InsertTask { row: snap }]).await.unwrap();
+        apply_ops(&mut tx, user_id, &[SubOp::InsertTask { row: snap }])
+            .await
+            .unwrap();
         tx.commit().await.unwrap();
         let (back_id,): (i64,) = sqlx::query_as("SELECT id FROM tasks WHERE project_id = ?")
             .bind(pid)
@@ -1518,16 +1597,9 @@ mod tests {
 
         // One schedule entry; the body content is irrelevant to the test.
         let mut tx = pool.begin().await.unwrap();
-        record_history(
-            &mut tx,
-            user_id,
-            CTX_SCHEDULE,
-            "noop_schedule",
-            &[],
-            &[],
-        )
-        .await
-        .unwrap();
+        record_history(&mut tx, user_id, CTX_SCHEDULE, "noop_schedule", &[], &[])
+            .await
+            .unwrap();
         // Mark it undone (simulate the user pressed undo).
         sqlx::query("UPDATE history SET undone = 1 WHERE user_id = ? AND context = ?")
             .bind(user_id)
@@ -1539,16 +1611,9 @@ mod tests {
 
         // Record a project entry; its `record_history` must clear only project-context undone rows.
         let mut tx = pool.begin().await.unwrap();
-        record_history(
-            &mut tx,
-            user_id,
-            CTX_PROJECT,
-            "noop_project",
-            &[],
-            &[],
-        )
-        .await
-        .unwrap();
+        record_history(&mut tx, user_id, CTX_PROJECT, "noop_project", &[], &[])
+            .await
+            .unwrap();
         tx.commit().await.unwrap();
 
         let schedule_redo: (i64,) = sqlx::query_as(
@@ -1575,11 +1640,7 @@ mod tests {
 
     // Schedule-context create/delete round-trips: creation and deletion are atomic entries owning the schedule and its binding.
 
-    async fn seed_schedule(
-        pool: &SqlitePool,
-        user_id: i64,
-        name: &str,
-    ) -> i64 {
+    async fn seed_schedule(pool: &SqlitePool, user_id: i64, name: &str) -> i64 {
         let (sid,): (i64,) = sqlx::query_as(
             "INSERT INTO schedules (user_id, name, start_min, end_min)
              VALUES (?, ?, 480, 1320) RETURNING id",
@@ -1592,12 +1653,7 @@ mod tests {
         sid
     }
 
-    async fn seed_item(
-        pool: &SqlitePool,
-        schedule_id: i64,
-        position: f64,
-        label: &str,
-    ) -> i64 {
+    async fn seed_item(pool: &SqlitePool, schedule_id: i64, position: f64, label: &str) -> i64 {
         let (iid,): (i64,) = sqlx::query_as(
             "INSERT INTO schedule_items
                (schedule_id, position, duration_target, use_inline, inline_label, color)
@@ -1636,7 +1692,10 @@ mod tests {
         .execute(&mut *tx)
         .await
         .unwrap();
-        let snap = snapshot_schedule(&mut tx, user_id, sid).await.unwrap().unwrap();
+        let snap = snapshot_schedule(&mut tx, user_id, sid)
+            .await
+            .unwrap()
+            .unwrap();
         record_history(
             &mut tx,
             user_id,
@@ -1644,7 +1703,10 @@ mod tests {
             "create_weekday_template",
             &[
                 SubOp::InsertSchedule { row: snap.clone() },
-                SubOp::InsertWeekdayBinding { weekday: 0, schedule_id: sid },
+                SubOp::InsertWeekdayBinding {
+                    weekday: 0,
+                    schedule_id: sid,
+                },
             ],
             &[
                 SubOp::DeleteWeekdayBinding { weekday: 0 },
@@ -1655,7 +1717,12 @@ mod tests {
         .unwrap();
         tx.commit().await.unwrap();
         assert_eq!(
-            count(&pool, "SELECT COUNT(*) FROM schedules WHERE user_id = ?", user_id).await,
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM schedules WHERE user_id = ?",
+                user_id
+            )
+            .await,
             1
         );
         assert_eq!(
@@ -1683,7 +1750,12 @@ mod tests {
         apply_ops(&mut tx, user_id, &ops).await.unwrap();
         tx.commit().await.unwrap();
         assert_eq!(
-            count(&pool, "SELECT COUNT(*) FROM schedules WHERE user_id = ?", user_id).await,
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM schedules WHERE user_id = ?",
+                user_id
+            )
+            .await,
             0
         );
         assert_eq!(
@@ -1710,12 +1782,11 @@ mod tests {
         let mut tx = pool.begin().await.unwrap();
         apply_ops(&mut tx, user_id, &ops).await.unwrap();
         tx.commit().await.unwrap();
-        let (back_id,): (i64,) =
-            sqlx::query_as("SELECT id FROM schedules WHERE user_id = ?")
-                .bind(user_id)
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let (back_id,): (i64,) = sqlx::query_as("SELECT id FROM schedules WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(back_id, sid, "redo restored the original schedule id");
         let (binding_sid,): (Option<i64>,) = sqlx::query_as(
             "SELECT schedule_id FROM calendar_weekday_bindings
@@ -1725,7 +1796,11 @@ mod tests {
         .fetch_one(&pool)
         .await
         .unwrap();
-        assert_eq!(binding_sid, Some(sid), "weekday binding points at the restored schedule");
+        assert_eq!(
+            binding_sid,
+            Some(sid),
+            "weekday binding points at the restored schedule"
+        );
     }
 
     #[tokio::test]
@@ -1776,26 +1851,42 @@ mod tests {
         .unwrap();
 
         // Snapshot in forward-replay order (schedule, items, override); the backward path mirrors it.
-        let schedule_snap =
-            snapshot_schedule(&mut tx, user_id, oid).await.unwrap().unwrap();
-        let snap_a = snapshot_item(&mut tx, user_id, clone_a).await.unwrap().unwrap();
-        let snap_b = snapshot_item(&mut tx, user_id, clone_b).await.unwrap().unwrap();
+        let schedule_snap = snapshot_schedule(&mut tx, user_id, oid)
+            .await
+            .unwrap()
+            .unwrap();
+        let snap_a = snapshot_item(&mut tx, user_id, clone_a)
+            .await
+            .unwrap()
+            .unwrap();
+        let snap_b = snapshot_item(&mut tx, user_id, clone_b)
+            .await
+            .unwrap()
+            .unwrap();
         record_history(
             &mut tx,
             user_id,
             CTX_SCHEDULE,
             "fork_weekday_template",
             &[
-                SubOp::InsertSchedule { row: schedule_snap.clone() },
-                SubOp::InsertItem { row: snap_a.clone() },
-                SubOp::InsertItem { row: snap_b.clone() },
+                SubOp::InsertSchedule {
+                    row: schedule_snap.clone(),
+                },
+                SubOp::InsertItem {
+                    row: snap_a.clone(),
+                },
+                SubOp::InsertItem {
+                    row: snap_b.clone(),
+                },
                 SubOp::InsertOverride {
                     date: "2026-05-25".to_string(),
                     schedule_id: oid,
                 },
             ],
             &[
-                SubOp::DeleteOverride { date: "2026-05-25".to_string() },
+                SubOp::DeleteOverride {
+                    date: "2026-05-25".to_string(),
+                },
                 SubOp::DeleteSchedule { id: oid },
             ],
         )
@@ -1804,13 +1895,12 @@ mod tests {
         tx.commit().await.unwrap();
 
         // Sanity: source template still has its items, override has two clones.
-        let n_template_items: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?",
-        )
-        .bind(template_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let n_template_items: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?")
+                .bind(template_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(n_template_items.0, 2, "template items unaffected by fork");
         assert!(template_item_a != clone_a && template_item_b != clone_b);
 
@@ -1820,7 +1910,9 @@ mod tests {
             &mut tx,
             user_id,
             &[
-                SubOp::DeleteOverride { date: "2026-05-25".to_string() },
+                SubOp::DeleteOverride {
+                    date: "2026-05-25".to_string(),
+                },
                 SubOp::DeleteSchedule { id: oid },
             ],
         )
@@ -1848,14 +1940,16 @@ mod tests {
             0,
             "override binding gone after undo",
         );
-        let n_template_items: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?",
-        )
-        .bind(template_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        assert_eq!(n_template_items.0, 2, "template items still intact after undo");
+        let n_template_items: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?")
+                .bind(template_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            n_template_items.0, 2,
+            "template items still intact after undo"
+        );
 
         // Redo: forward = Insert schedule, items, override.
         let mut tx = pool.begin().await.unwrap();
@@ -1875,26 +1969,25 @@ mod tests {
         .await
         .unwrap();
         tx.commit().await.unwrap();
-        let (back_id,): (i64,) = sqlx::query_as(
-            "SELECT id FROM schedules WHERE id = ? AND user_id = ?",
-        )
-        .bind(oid)
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (back_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM schedules WHERE id = ? AND user_id = ?")
+                .bind(oid)
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(back_id, oid, "redo restored the override id");
-        let item_ids: Vec<(i64,)> = sqlx::query_as(
-            "SELECT id FROM schedule_items WHERE schedule_id = ? ORDER BY id ASC",
-        )
-        .bind(oid)
-        .fetch_all(&pool)
-        .await
-        .unwrap();
+        let item_ids: Vec<(i64,)> =
+            sqlx::query_as("SELECT id FROM schedule_items WHERE schedule_id = ? ORDER BY id ASC")
+                .bind(oid)
+                .fetch_all(&pool)
+                .await
+                .unwrap();
         let ids: Vec<i64> = item_ids.into_iter().map(|(i,)| i).collect();
         assert!(
             ids.contains(&clone_a) && ids.contains(&clone_b),
-            "redo restored the original cloned item ids: {:?}", ids
+            "redo restored the original cloned item ids: {:?}",
+            ids
         );
         let (bound_sid,): (Option<i64>,) = sqlx::query_as(
             "SELECT schedule_id FROM calendar_date_overrides
@@ -1926,18 +2019,29 @@ mod tests {
         .unwrap();
 
         let mut tx = pool.begin().await.unwrap();
-        let schedule_snap = snapshot_schedule(&mut tx, user_id, sid).await.unwrap().unwrap();
+        let schedule_snap = snapshot_schedule(&mut tx, user_id, sid)
+            .await
+            .unwrap()
+            .unwrap();
         let snap_i1 = snapshot_item(&mut tx, user_id, i1).await.unwrap().unwrap();
         let snap_i2 = snapshot_item(&mut tx, user_id, i2).await.unwrap().unwrap();
 
         let forward = vec![
-            SubOp::DeleteOverride { date: "2026-06-01".to_string() },
+            SubOp::DeleteOverride {
+                date: "2026-06-01".to_string(),
+            },
             SubOp::DeleteSchedule { id: sid },
         ];
         let backward = vec![
-            SubOp::InsertSchedule { row: schedule_snap.clone() },
-            SubOp::InsertItem { row: snap_i1.clone() },
-            SubOp::InsertItem { row: snap_i2.clone() },
+            SubOp::InsertSchedule {
+                row: schedule_snap.clone(),
+            },
+            SubOp::InsertItem {
+                row: snap_i1.clone(),
+            },
+            SubOp::InsertItem {
+                row: snap_i2.clone(),
+            },
             SubOp::InsertOverride {
                 date: "2026-06-01".to_string(),
                 schedule_id: sid,
@@ -1957,7 +2061,12 @@ mod tests {
         tx.commit().await.unwrap();
 
         assert_eq!(
-            count(&pool, "SELECT COUNT(*) FROM schedules WHERE user_id = ?", user_id).await,
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM schedules WHERE user_id = ?",
+                user_id
+            )
+            .await,
             0,
             "schedule removed",
         );
@@ -1976,24 +2085,23 @@ mod tests {
         let mut tx = pool.begin().await.unwrap();
         apply_ops(&mut tx, user_id, &backward).await.unwrap();
         tx.commit().await.unwrap();
-        let (back_id,): (i64,) =
-            sqlx::query_as("SELECT id FROM schedules WHERE user_id = ?")
-                .bind(user_id)
-                .fetch_one(&pool)
+        let (back_id,): (i64,) = sqlx::query_as("SELECT id FROM schedules WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(back_id, sid);
+        let item_ids: Vec<(i64,)> =
+            sqlx::query_as("SELECT id FROM schedule_items WHERE schedule_id = ? ORDER BY id ASC")
+                .bind(sid)
+                .fetch_all(&pool)
                 .await
                 .unwrap();
-        assert_eq!(back_id, sid);
-        let item_ids: Vec<(i64,)> = sqlx::query_as(
-            "SELECT id FROM schedule_items WHERE schedule_id = ? ORDER BY id ASC",
-        )
-        .bind(sid)
-        .fetch_all(&pool)
-        .await
-        .unwrap();
         let ids: Vec<i64> = item_ids.into_iter().map(|(i,)| i).collect();
         assert!(
             ids.contains(&i1) && ids.contains(&i2),
-            "items restored with original ids: {:?}", ids
+            "items restored with original ids: {:?}",
+            ids
         );
         let (bound_sid,): (Option<i64>,) = sqlx::query_as(
             "SELECT schedule_id FROM calendar_date_overrides
@@ -2010,7 +2118,12 @@ mod tests {
         apply_ops(&mut tx, user_id, &forward).await.unwrap();
         tx.commit().await.unwrap();
         assert_eq!(
-            count(&pool, "SELECT COUNT(*) FROM schedules WHERE user_id = ?", user_id).await,
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM schedules WHERE user_id = ?",
+                user_id
+            )
+            .await,
             0
         );
         assert_eq!(
@@ -2042,8 +2155,10 @@ mod tests {
         .unwrap();
 
         let mut tx = pool.begin().await.unwrap();
-        let schedule_snap =
-            snapshot_schedule(&mut tx, user_id, sid).await.unwrap().unwrap();
+        let schedule_snap = snapshot_schedule(&mut tx, user_id, sid)
+            .await
+            .unwrap()
+            .unwrap();
         let snap_i1 = snapshot_item(&mut tx, user_id, i1).await.unwrap().unwrap();
         let forward = vec![
             SubOp::DeleteWeekdayBinding { weekday: 1 },
@@ -2052,7 +2167,10 @@ mod tests {
         let backward = vec![
             SubOp::InsertSchedule { row: schedule_snap },
             SubOp::InsertItem { row: snap_i1 },
-            SubOp::InsertWeekdayBinding { weekday: 1, schedule_id: sid },
+            SubOp::InsertWeekdayBinding {
+                weekday: 1,
+                schedule_id: sid,
+            },
         ];
         apply_ops(&mut tx, user_id, &forward).await.unwrap();
         record_history(
@@ -2068,7 +2186,12 @@ mod tests {
         tx.commit().await.unwrap();
 
         assert_eq!(
-            count(&pool, "SELECT COUNT(*) FROM schedules WHERE user_id = ?", user_id).await,
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM schedules WHERE user_id = ?",
+                user_id
+            )
+            .await,
             0
         );
         assert_eq!(
@@ -2086,20 +2209,18 @@ mod tests {
         let mut tx = pool.begin().await.unwrap();
         apply_ops(&mut tx, user_id, &backward).await.unwrap();
         tx.commit().await.unwrap();
-        let (back_id,): (i64,) =
-            sqlx::query_as("SELECT id FROM schedules WHERE user_id = ?")
-                .bind(user_id)
+        let (back_id,): (i64,) = sqlx::query_as("SELECT id FROM schedules WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(back_id, sid);
+        let (item_back,): (i64,) =
+            sqlx::query_as("SELECT id FROM schedule_items WHERE schedule_id = ?")
+                .bind(sid)
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(back_id, sid);
-        let (item_back,): (i64,) = sqlx::query_as(
-            "SELECT id FROM schedule_items WHERE schedule_id = ?",
-        )
-        .bind(sid)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
         assert_eq!(item_back, i1);
         let (bound_sid,): (Option<i64>,) = sqlx::query_as(
             "SELECT schedule_id FROM calendar_weekday_bindings
@@ -2116,7 +2237,12 @@ mod tests {
         apply_ops(&mut tx, user_id, &forward).await.unwrap();
         tx.commit().await.unwrap();
         assert_eq!(
-            count(&pool, "SELECT COUNT(*) FROM schedules WHERE user_id = ?", user_id).await,
+            count(
+                &pool,
+                "SELECT COUNT(*) FROM schedules WHERE user_id = ?",
+                user_id
+            )
+            .await,
             0
         );
     }

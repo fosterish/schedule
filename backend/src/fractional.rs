@@ -63,7 +63,15 @@ pub fn compute_reorder_position(
                 p.1 += 1.0;
             }
             output.insert(0, (moved_id, 1.0));
-        } else if after == Some(output.iter().filter(|(id, _)| *id != moved_id).count().saturating_sub(1)) {
+        } else if after
+            == Some(
+                output
+                    .iter()
+                    .filter(|(id, _)| *id != moved_id)
+                    .count()
+                    .saturating_sub(1),
+            )
+        {
             // Tail insert is already handled by the loop above.
         }
         let new_pos = output

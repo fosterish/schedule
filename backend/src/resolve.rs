@@ -66,7 +66,10 @@ pub fn compute_layout(schedule: &Schedule, items: &[ScheduleItem]) -> LayoutResu
             id: it.id,
             assigned_start: 0,
             assigned_end: 0,
-            flags: ItemFlags { out_of_bounds: oob, ..Default::default() },
+            flags: ItemFlags {
+                out_of_bounds: oob,
+                ..Default::default()
+            },
         });
     }
 
@@ -168,7 +171,11 @@ pub fn compute_layout(schedule: &Schedule, items: &[ScheduleItem]) -> LayoutResu
             // diff > 0 adds minutes; diff < 0 means we over-floored at MIN_DURATION and must reclaim, else over-constrained.
             if diff > 0 {
                 let mut order: Vec<usize> = (0..seg.len()).collect();
-                order.sort_by(|&a, &b| remainders[b].partial_cmp(&remainders[a]).unwrap_or(std::cmp::Ordering::Equal));
+                order.sort_by(|&a, &b| {
+                    remainders[b]
+                        .partial_cmp(&remainders[a])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
                 let mut k = 0usize;
                 while diff > 0 && !order.is_empty() {
                     shares[order[k % order.len()]] += 1;
@@ -303,13 +310,14 @@ pub struct RankIndicator {
 }
 
 /// Resolve a date into a fully-laid-out DayView.
-pub async fn resolve_day(
-    pool: &SqlitePool,
-    user_id: i64,
-    date: Date,
-) -> AppResult<DayView> {
+pub async fn resolve_day(pool: &SqlitePool, user_id: i64, date: Date) -> AppResult<DayView> {
     let (schedule, source) = pick_schedule(pool, user_id, date).await?;
-    let date_str = format!("{}-{:02}-{:02}", date.year(), u8::from(date.month()), date.day());
+    let date_str = format!(
+        "{}-{:02}-{:02}",
+        date.year(),
+        u8::from(date.month()),
+        date.day()
+    );
 
     let Some(schedule) = schedule else {
         return Ok(DayView {
@@ -579,7 +587,10 @@ impl UserResolveContext {
 
         let mut blockers_by_blocked: HashMap<i64, Vec<i64>> = HashMap::new();
         for (blocked, blocker) in deps {
-            blockers_by_blocked.entry(blocked).or_default().push(blocker);
+            blockers_by_blocked
+                .entry(blocked)
+                .or_default()
+                .push(blocker);
         }
 
         // Rank like `pick_project_by_rank`: non-archived, `(value/time_cost) DESC, created_at, id`; task-less projects stay in, time_cost==0 sorts last.
@@ -918,13 +929,14 @@ mod tests {
             .run(&pool)
             .await
             .expect("apply migrations");
-        let row: (i64,) =
-            sqlx::query_as("INSERT INTO users (username, password_hash) VALUES (?, ?) RETURNING id")
-                .bind("alice")
-                .bind("hash")
-                .fetch_one(&pool)
-                .await
-                .expect("seed user");
+        let row: (i64,) = sqlx::query_as(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?) RETURNING id",
+        )
+        .bind("alice")
+        .bind("hash")
+        .fetch_one(&pool)
+        .await
+        .expect("seed user");
         (pool, row.0)
     }
 
@@ -977,7 +989,11 @@ mod tests {
         let item = project_item(project_id);
         let payload = resolve_payload(&pool, user_id, &item).await.unwrap();
         match payload {
-            ResolvedPayload::Task { color, project_name, .. } => {
+            ResolvedPayload::Task {
+                color,
+                project_name,
+                ..
+            } => {
                 assert_eq!(color, "magenta", "Task payload uses project color");
                 assert_eq!(project_name, "Magenta proj");
             }
@@ -1087,7 +1103,10 @@ mod tests {
             ResolvedPayload::Task {
                 project_id, color, ..
             } => {
-                assert_eq!(project_id, hi_id, "rank=1 must pick higher-priority project");
+                assert_eq!(
+                    project_id, hi_id,
+                    "rank=1 must pick higher-priority project"
+                );
                 assert_eq!(color, "orange");
             }
             other => panic!("expected Task payload, got {:?}", other),
@@ -1130,7 +1149,10 @@ mod tests {
             } => {
                 assert_eq!(project_color.as_deref(), Some("yellow"));
                 assert_eq!(project_name.as_deref(), Some("Yellow proj"));
-                assert!(!project_has_tasks, "project with zero tasks should report false");
+                assert!(
+                    !project_has_tasks,
+                    "project with zero tasks should report false"
+                );
             }
             other => panic!("expected Empty payload, got {:?}", other),
         }
@@ -1167,15 +1189,25 @@ mod tests {
         let item = project_item(project_id);
         let payload = resolve_payload(&pool, user_id, &item).await.unwrap();
         match payload {
-            ResolvedPayload::Empty { project_has_tasks, .. } => {
-                assert!(project_has_tasks, "async path: project with one completed task should report true");
+            ResolvedPayload::Empty {
+                project_has_tasks, ..
+            } => {
+                assert!(
+                    project_has_tasks,
+                    "async path: project with one completed task should report true"
+                );
             }
             other => panic!("expected Empty payload, got {:?}", other),
         }
         let ctx = UserResolveContext::load(&pool, user_id).await.unwrap();
         match ctx.resolve(&item) {
-            ResolvedPayload::Empty { project_has_tasks, .. } => {
-                assert!(project_has_tasks, "sync path: project with one completed task should report true");
+            ResolvedPayload::Empty {
+                project_has_tasks, ..
+            } => {
+                assert!(
+                    project_has_tasks,
+                    "sync path: project with one completed task should report true"
+                );
             }
             other => panic!("expected Empty payload, got {:?}", other),
         }
@@ -1460,9 +1492,8 @@ mod tests {
             }
             assert_eq!(
                 match payload {
-                    ResolvedPayload::Empty {
-                        rank_indicator, ..
-                    } => rank_indicator.as_ref().and_then(|r| r.project_rank),
+                    ResolvedPayload::Empty { rank_indicator, .. } =>
+                        rank_indicator.as_ref().and_then(|r| r.project_rank),
                     _ => None,
                 },
                 Some(1),
@@ -1638,7 +1669,10 @@ mod tests {
                 ..
             } => {
                 assert_eq!(project_name.as_deref(), Some("Empty proj"));
-                assert!(!project_has_tasks, "project with zero tasks should report false");
+                assert!(
+                    !project_has_tasks,
+                    "project with zero tasks should report false"
+                );
             }
             other => panic!("expected Empty payload, got {:?}", other),
         }
@@ -1691,7 +1725,11 @@ mod tests {
             .collect();
         let mut sorted = entries;
         sorted.sort();
-        assert!(!sorted.is_empty(), "no .json files in {}", corpus_dir.display());
+        assert!(
+            !sorted.is_empty(),
+            "no .json files in {}",
+            corpus_dir.display()
+        );
 
         for path in sorted {
             let raw = fs::read_to_string(&path).unwrap();
@@ -1711,7 +1749,13 @@ mod tests {
                 );
                 for (i, ei) in expected.iter().enumerate() {
                     let r = &result.items[i];
-                    assert_eq!(r.id, ei["id"].as_i64().unwrap(), "[{}] id mismatch at {}", name, i);
+                    assert_eq!(
+                        r.id,
+                        ei["id"].as_i64().unwrap(),
+                        "[{}] id mismatch at {}",
+                        name,
+                        i
+                    );
                     assert_eq!(
                         r.assigned_start,
                         ei["assigned_start"].as_i64().unwrap(),
@@ -1757,11 +1801,8 @@ mod tests {
                     .iter()
                     .map(|v| v.as_str().unwrap().to_string())
                     .collect();
-                let actual_names: Vec<String> = result
-                    .errors
-                    .iter()
-                    .map(|e| format!("{:?}", e))
-                    .collect();
+                let actual_names: Vec<String> =
+                    result.errors.iter().map(|e| format!("{:?}", e)).collect();
                 for n in need {
                     assert!(
                         actual_names.iter().any(|a| a == &n),
@@ -1814,12 +1855,11 @@ async fn pick_task_in_project(
         if comp.is_some() {
             continue;
         }
-        let deps: Vec<(i64,)> = sqlx::query_as(
-            "SELECT blocker_id FROM task_dependencies WHERE blocked_id = ?",
-        )
-        .bind(id)
-        .fetch_all(pool)
-        .await?;
+        let deps: Vec<(i64,)> =
+            sqlx::query_as("SELECT blocker_id FROM task_dependencies WHERE blocked_id = ?")
+                .bind(id)
+                .fetch_all(pool)
+                .await?;
         let all_blockers_done = deps.iter().all(|(b,)| completed.contains(b));
         if all_blockers_done {
             eligible.push(LoadedTask {
@@ -1835,4 +1875,3 @@ async fn pick_task_in_project(
     }
     Ok(eligible.into_iter().nth((rank - 1) as usize))
 }
-

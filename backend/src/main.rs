@@ -18,7 +18,8 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://schedule.db?mode=rwc".to_string());
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "sqlite://schedule.db?mode=rwc".to_string());
     let pool = db::connect(&database_url).await?;
     db::migrate(&pool).await?;
 

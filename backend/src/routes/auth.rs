@@ -44,7 +44,11 @@ struct MeResponse {
     username: String,
 }
 
-async fn me(State(state): State<AppState>, user: AuthUser, jar: SignedCookieJar<Key>) -> AppResult<impl IntoResponse> {
+async fn me(
+    State(state): State<AppState>,
+    user: AuthUser,
+    jar: SignedCookieJar<Key>,
+) -> AppResult<impl IntoResponse> {
     let row: Option<(i64, String)> = sqlx::query_as("SELECT id, username FROM users WHERE id = ?")
         .bind(user.0)
         .fetch_optional(&state.pool)

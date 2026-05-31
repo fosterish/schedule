@@ -9,9 +9,7 @@ use sqlx::{Sqlite, Transaction};
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
 use crate::fractional::compute_reorder_position;
-use crate::history::{
-    record_history, snapshot_task, task_dependencies_for, SubOp, CTX_PROJECT,
-};
+use crate::history::{record_history, snapshot_task, task_dependencies_for, SubOp, CTX_PROJECT};
 use crate::models::task::{AddDependency, NewTask, PatchTask, ReorderTask, Task};
 use crate::routes::projects::load_project;
 use crate::AppState;
@@ -66,12 +64,13 @@ async fn create_task(
     let name = body.name.unwrap_or_else(|| "New task".to_string());
 
     let mut tx = state.pool.begin().await?;
-    let max: Option<f64> =
-        sqlx::query_as::<_, (Option<f64>,)>("SELECT MAX(list_order) FROM tasks WHERE project_id = ?")
-            .bind(project_id)
-            .fetch_one(&mut *tx)
-            .await?
-            .0;
+    let max: Option<f64> = sqlx::query_as::<_, (Option<f64>,)>(
+        "SELECT MAX(list_order) FROM tasks WHERE project_id = ?",
+    )
+    .bind(project_id)
+    .fetch_one(&mut *tx)
+    .await?
+    .0;
     let pos = max.map(|m| m + 1.0).unwrap_or(1.0);
     let row: (i64,) = sqlx::query_as(
         "INSERT INTO tasks (project_id, name, description, list_order)
@@ -199,7 +198,10 @@ async fn delete_task(
     let mut backward: Vec<SubOp> = Vec::with_capacity(1 + deps.len());
     backward.push(SubOp::InsertTask { row: snap });
     for (blocked_id, blocker_id) in deps {
-        backward.push(SubOp::InsertTaskDep { blocked_id, blocker_id });
+        backward.push(SubOp::InsertTaskDep {
+            blocked_id,
+            blocker_id,
+        });
     }
     record_history(
         &mut tx,
@@ -285,7 +287,10 @@ async fn delete_completed_tasks(
         backward.push(SubOp::InsertTask { row: snap });
     }
     for (blocked_id, blocker_id) in deps {
-        backward.push(SubOp::InsertTaskDep { blocked_id, blocker_id });
+        backward.push(SubOp::InsertTaskDep {
+            blocked_id,
+            blocker_id,
+        });
     }
     record_history(
         &mut tx,
@@ -495,34 +500,30 @@ async fn add_dependency(
         return Err(AppError::bad_request("task cannot block itself"));
     }
     // Prevent direct cycles only; the resolver tolerates indirect cycles by stalling.
-    let reverse: Option<(i64,)> = sqlx::query_as(
-        "SELECT 1 FROM task_dependencies WHERE blocked_id = ? AND blocker_id = ?",
-    )
-    .bind(blocker.id)
-    .bind(task.id)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let reverse: Option<(i64,)> =
+        sqlx::query_as("SELECT 1 FROM task_dependencies WHERE blocked_id = ? AND blocker_id = ?")
+            .bind(blocker.id)
+            .bind(task.id)
+            .fetch_optional(&mut *tx)
+            .await?;
     if reverse.is_some() {
         return Err(AppError::bad_request("dependency would create a cycle"));
     }
-    let existing: Option<(i64,)> = sqlx::query_as(
-        "SELECT 1 FROM task_dependencies WHERE blocked_id = ? AND blocker_id = ?",
-    )
-    .bind(task.id)
-    .bind(blocker.id)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let existing: Option<(i64,)> =
+        sqlx::query_as("SELECT 1 FROM task_dependencies WHERE blocked_id = ? AND blocker_id = ?")
+            .bind(task.id)
+            .bind(blocker.id)
+            .fetch_optional(&mut *tx)
+            .await?;
     if existing.is_some() {
         tx.commit().await?;
         return Ok(StatusCode::NO_CONTENT);
     }
-    sqlx::query(
-        "INSERT INTO task_dependencies (blocked_id, blocker_id) VALUES (?, ?)",
-    )
-    .bind(task.id)
-    .bind(blocker.id)
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query("INSERT INTO task_dependencies (blocked_id, blocker_id) VALUES (?, ?)")
+        .bind(task.id)
+        .bind(blocker.id)
+        .execute(&mut *tx)
+        .await?;
     record_history(
         &mut tx,
         user.0,
@@ -549,13 +550,12 @@ async fn remove_dependency(
 ) -> AppResult<impl IntoResponse> {
     let mut tx = state.pool.begin().await?;
     let _task = load_task_tx(&mut tx, user.0, id).await?;
-    let existing: Option<(i64,)> = sqlx::query_as(
-        "SELECT 1 FROM task_dependencies WHERE blocked_id = ? AND blocker_id = ?",
-    )
-    .bind(id)
-    .bind(blocker_id)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let existing: Option<(i64,)> =
+        sqlx::query_as("SELECT 1 FROM task_dependencies WHERE blocked_id = ? AND blocker_id = ?")
+            .bind(id)
+            .bind(blocker_id)
+            .fetch_optional(&mut *tx)
+            .await?;
     if existing.is_none() {
         tx.commit().await?;
         return Ok(StatusCode::NO_CONTENT);

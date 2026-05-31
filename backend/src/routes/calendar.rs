@@ -10,19 +10,14 @@ use time::Date;
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
-use crate::history::{
-    record_history, snapshot_item, snapshot_schedule, SubOp, CTX_SCHEDULE,
-};
+use crate::history::{record_history, snapshot_item, snapshot_schedule, SubOp, CTX_SCHEDULE};
 use crate::models::schedule::{Schedule, DEFAULT_END_MIN, DEFAULT_START_MIN};
 use crate::routes::schedules::{load_items_tx, load_schedule, load_schedule_tx};
 use crate::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route(
-            "/calendar/weekdays",
-            get(list_weekdays).put(put_weekdays),
-        )
+        .route("/calendar/weekdays", get(list_weekdays).put(put_weekdays))
         .route("/calendar/weekdays/{weekday}", get(get_weekday))
         .route(
             "/calendar/weekdays/{weekday}/create",
@@ -33,10 +28,7 @@ pub fn router() -> Router<AppState> {
             "/calendar/overrides/{date}",
             get(get_override).post(put_override).delete(delete_override),
         )
-        .route(
-            "/calendar/overrides/{date}/create",
-            post(create_override),
-        )
+        .route("/calendar/overrides/{date}/create", post(create_override))
         .route(
             "/calendar/overrides/{date}/fork-weekday-template",
             post(fork_weekday_template),
@@ -72,7 +64,10 @@ async fn list_weekdays(
             Some(sid) => Some(load_schedule(&state.pool, user.0, sid).await?),
             None => None,
         };
-        out.push(WeekdayRow { weekday: w, schedule: sched });
+        out.push(WeekdayRow {
+            weekday: w,
+            schedule: sched,
+        });
     }
     Ok(Json(out))
 }
@@ -134,7 +129,10 @@ async fn get_weekday(
         Some(sid) => Some(load_schedule(&state.pool, user.0, sid).await?),
         None => None,
     };
-    Ok(Json(WeekdayRow { weekday, schedule: sched }))
+    Ok(Json(WeekdayRow {
+        weekday,
+        schedule: sched,
+    }))
 }
 
 async fn create_weekday_template(
@@ -204,7 +202,10 @@ async fn create_weekday_template(
         }
     };
     tx.commit().await?;
-    Ok(Json(WeekdayRow { weekday, schedule: Some(sched) }))
+    Ok(Json(WeekdayRow {
+        weekday,
+        schedule: Some(sched),
+    }))
 }
 
 fn parse_date(s: &str) -> AppResult<Date> {

@@ -23,7 +23,9 @@ pub fn router() -> Router<AppState> {
         .route("/schedules", get(list_schedules).post(create_schedule))
         .route(
             "/schedules/{id}",
-            get(get_schedule).patch(patch_schedule).delete(delete_schedule),
+            get(get_schedule)
+                .patch(patch_schedule)
+                .delete(delete_schedule),
         )
         .route("/schedules/{id}/items", get(list_items))
         // Atomic Add Item: insert plus solver position updates in one transaction and history entry.
@@ -177,12 +179,9 @@ async fn delete_schedule(
 
     // Forward drops bindings before the schedule; backward re-inserts schedule, items, then bindings (FK order).
     let mut forward: Vec<crate::history::SubOp> = Vec::new();
-    let override_date_str: Option<String> =
-        override_date_row.map(|(d,)| format_date_iso(d));
+    let override_date_str: Option<String> = override_date_row.map(|(d,)| format_date_iso(d));
     if let Some(date) = &override_date_str {
-        forward.push(crate::history::SubOp::DeleteOverride {
-            date: date.clone(),
-        });
+        forward.push(crate::history::SubOp::DeleteOverride { date: date.clone() });
     }
     for wd in &weekdays {
         forward.push(crate::history::SubOp::DeleteWeekdayBinding { weekday: *wd });
@@ -314,27 +313,21 @@ pub async fn insert_item_atomic_tx(
 
     // Validate each reorders.id belongs here, capture prior positions for undo, reject duplicates.
     let mut seen_ids: std::collections::HashSet<i64> = std::collections::HashSet::new();
-    let mut prior_positions: std::collections::HashMap<i64, f64> =
-        std::collections::HashMap::new();
+    let mut prior_positions: std::collections::HashMap<i64, f64> = std::collections::HashMap::new();
     for upd in &body.reorders {
         if !seen_ids.insert(upd.id) {
-            return Err(AppError::bad_request(
-                "reorders contains duplicate id",
-            ));
+            return Err(AppError::bad_request("reorders contains duplicate id"));
         }
-        let row: Option<(i64, f64)> = sqlx::query_as(
-            "SELECT schedule_id, position FROM schedule_items WHERE id = ?",
-        )
-        .bind(upd.id)
-        .fetch_optional(&mut *tx)
-        .await?;
+        let row: Option<(i64, f64)> =
+            sqlx::query_as("SELECT schedule_id, position FROM schedule_items WHERE id = ?")
+                .bind(upd.id)
+                .fetch_optional(&mut *tx)
+                .await?;
         let Some((sid, prev)) = row else {
             return Err(AppError::bad_request("reorders id not found"));
         };
         if sid != schedule_id {
-            return Err(AppError::bad_request(
-                "reorders id not in same schedule",
-            ));
+            return Err(AppError::bad_request("reorders id not in same schedule"));
         }
         prior_positions.insert(upd.id, prev);
     }
@@ -363,19 +356,16 @@ pub async fn insert_item_atomic_tx(
         }
         Some(after_opt) => {
             if let Some(after_id) = after_opt {
-                let row: Option<(i64,)> = sqlx::query_as(
-                    "SELECT schedule_id FROM schedule_items WHERE id = ?",
-                )
-                .bind(after_id)
-                .fetch_optional(&mut *tx)
-                .await?;
+                let row: Option<(i64,)> =
+                    sqlx::query_as("SELECT schedule_id FROM schedule_items WHERE id = ?")
+                        .bind(after_id)
+                        .fetch_optional(&mut *tx)
+                        .await?;
                 let Some((sid,)) = row else {
                     return Err(AppError::bad_request("after_item_id not found"));
                 };
                 if sid != schedule_id {
-                    return Err(AppError::bad_request(
-                        "after_item_id not in same schedule",
-                    ));
+                    return Err(AppError::bad_request("after_item_id not in same schedule"));
                 }
             }
             let rows: Vec<(i64, f64)> = sqlx::query_as(
@@ -508,8 +498,16 @@ async fn patch_item(
         .await?
         .expect("item exists");
 
-    let new_start = if body.start_min.is_some() { body.start_min.unwrap() } else { item.start_min };
-    let new_end = if body.end_min.is_some() { body.end_min.unwrap() } else { item.end_min };
+    let new_start = if body.start_min.is_some() {
+        body.start_min.unwrap()
+    } else {
+        item.start_min
+    };
+    let new_end = if body.end_min.is_some() {
+        body.end_min.unwrap()
+    } else {
+        item.end_min
+    };
     let new_duration_target = body.duration_target.unwrap_or(item.duration_target);
     if new_duration_target <= 0 {
         return Err(AppError::validation("duration_target must be > 0"));
@@ -561,8 +559,7 @@ async fn patch_item(
             sched_new_start = e;
         }
     }
-    let sched_changed =
-        sched_new_start != sched.start_min || sched_new_end != sched.end_min;
+    let sched_changed = sched_new_start != sched.start_min || sched_new_end != sched.end_min;
     if sched_changed {
         validate_schedule_bounds(sched_new_start, sched_new_end)?;
         sqlx::query("UPDATE schedules SET start_min = ?, end_min = ? WHERE id = ?")
@@ -721,8 +718,7 @@ async fn reorder_item(
             }
         }
     }
-    let sched_changed =
-        sched_new_start != sched.start_min || sched_new_end != sched.end_min;
+    let sched_changed = sched_new_start != sched.start_min || sched_new_end != sched.end_min;
     if sched_changed {
         validate_schedule_bounds(sched_new_start, sched_new_end)?;
         sqlx::query("UPDATE schedules SET start_min = ?, end_min = ? WHERE id = ?")
@@ -741,8 +737,7 @@ async fn reorder_item(
     // Apply anchor updates first without intermediate layout validation; intermediate state may be non-monotonic.
     let mut anchor_before: Vec<crate::history::SubOp> = Vec::new();
     let mut anchor_after: Vec<crate::history::SubOp> = Vec::new();
-    let mut seen_anchor_ids: std::collections::HashSet<i64> =
-        std::collections::HashSet::new();
+    let mut seen_anchor_ids: std::collections::HashSet<i64> = std::collections::HashSet::new();
     for upd in &body.anchor_updates {
         if !seen_anchor_ids.insert(upd.id) {
             return Err(AppError::bad_request(
@@ -1017,7 +1012,9 @@ pub fn validate_window(
 ) -> AppResult<()> {
     if let Some(s) = start_min {
         if s < sched.start_min || s > sched.end_min {
-            return Err(AppError::validation("item start_min out of schedule window"));
+            return Err(AppError::validation(
+                "item start_min out of schedule window",
+            ));
         }
     }
     if let Some(e) = end_min {
@@ -1086,11 +1083,7 @@ pub fn validate_layout(sched: &Schedule, items: &[ScheduleItem]) -> AppResult<()
     Ok(())
 }
 
-pub async fn load_schedule(
-    pool: &sqlx::SqlitePool,
-    user_id: i64,
-    id: i64,
-) -> AppResult<Schedule> {
+pub async fn load_schedule(pool: &sqlx::SqlitePool, user_id: i64, id: i64) -> AppResult<Schedule> {
     let row: Option<Schedule> = sqlx::query_as::<_, Schedule>(
         "SELECT id, user_id, name, start_min, end_min FROM schedules WHERE id = ? AND user_id = ?",
     )
@@ -1136,10 +1129,7 @@ pub async fn load_item_tx(
     row.ok_or(AppError::NotFound)
 }
 
-pub async fn load_items(
-    pool: &sqlx::SqlitePool,
-    schedule_id: i64,
-) -> AppResult<Vec<ScheduleItem>> {
+pub async fn load_items(pool: &sqlx::SqlitePool, schedule_id: i64) -> AppResult<Vec<ScheduleItem>> {
     Ok(sqlx::query_as::<_, ScheduleItem>(
         "SELECT id, schedule_id, position, start_min, end_min, duration_target,
                 use_inline, inline_label, inline_description, color,
@@ -1186,7 +1176,10 @@ mod insert_atomic_tests {
             .connect_with(opts)
             .await
             .expect("connect");
-        sqlx::migrate!("./migrations").run(&pool).await.expect("migrate");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
         pool
     }
 
@@ -1297,8 +1290,14 @@ mod insert_atomic_tests {
         let body = InsertItemAtomicRequest {
             item,
             reorders: vec![
-                PositionUpdate { id: a, position: 2.0 },
-                PositionUpdate { id: b, position: 1.0 },
+                PositionUpdate {
+                    id: a,
+                    position: 2.0,
+                },
+                PositionUpdate {
+                    id: b,
+                    position: 1.0,
+                },
             ],
         };
         let new_id = insert_item_atomic_tx(&pool, user_id, sid, body)
@@ -1357,9 +1356,10 @@ mod insert_atomic_tests {
 
         let body = InsertItemAtomicRequest {
             item: empty_item_body(),
-            reorders: vec![
-                PositionUpdate { id: 99_999, position: 1.5 },
-            ],
+            reorders: vec![PositionUpdate {
+                id: 99_999,
+                position: 1.5,
+            }],
         };
         let err = insert_item_atomic_tx(&pool, user_id, sid, body)
             .await
@@ -1367,23 +1367,21 @@ mod insert_atomic_tests {
         assert!(matches!(err, AppError::BadRequest(_)), "got {err:?}");
 
         // No new row landed (rollback held).
-        let (n,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?",
-        )
-        .bind(sid)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (n,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?")
+                .bind(sid)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(n, 1, "transaction rolled back on validation failure");
 
-        let (h,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM history WHERE user_id = ? AND context = ?",
-        )
-        .bind(user_id)
-        .bind(CTX_SCHEDULE)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (h,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM history WHERE user_id = ? AND context = ?")
+                .bind(user_id)
+                .bind(CTX_SCHEDULE)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(h, 0);
     }
 
@@ -1400,7 +1398,10 @@ mod insert_atomic_tests {
         item.end_min = Some(360);
         let body = InsertItemAtomicRequest {
             item,
-            reorders: vec![PositionUpdate { id: a, position: 1.5 }],
+            reorders: vec![PositionUpdate {
+                id: a,
+                position: 1.5,
+            }],
         };
         let err = insert_item_atomic_tx(&pool, user_id, sid, body)
             .await
@@ -1408,24 +1409,22 @@ mod insert_atomic_tests {
         assert!(matches!(err, AppError::Validation(_)), "got {err:?}");
 
         // Rollback: row count unchanged and A's position untouched.
-        let items: Vec<(i64, f64)> = sqlx::query_as(
-            "SELECT id, position FROM schedule_items WHERE schedule_id = ?",
-        )
-        .bind(sid)
-        .fetch_all(&pool)
-        .await
-        .unwrap();
+        let items: Vec<(i64, f64)> =
+            sqlx::query_as("SELECT id, position FROM schedule_items WHERE schedule_id = ?")
+                .bind(sid)
+                .fetch_all(&pool)
+                .await
+                .unwrap();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0], (a, 1.0), "A's position survived the rollback");
 
-        let (h,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM history WHERE user_id = ? AND context = ?",
-        )
-        .bind(user_id)
-        .bind(CTX_SCHEDULE)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (h,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM history WHERE user_id = ? AND context = ?")
+                .bind(user_id)
+                .bind(CTX_SCHEDULE)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(h, 0);
     }
 
@@ -1443,8 +1442,14 @@ mod insert_atomic_tests {
         let body = InsertItemAtomicRequest {
             item,
             reorders: vec![
-                PositionUpdate { id: a, position: 2.0 },
-                PositionUpdate { id: b, position: 1.0 },
+                PositionUpdate {
+                    id: a,
+                    position: 2.0,
+                },
+                PositionUpdate {
+                    id: b,
+                    position: 1.0,
+                },
             ],
         };
         let new_id = insert_item_atomic_tx(&pool, user_id, sid, body)

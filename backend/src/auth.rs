@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::password_hash::{
+    rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+};
 use argon2::Argon2;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
@@ -22,8 +24,8 @@ pub struct SessionPayload {
 
 impl SessionPayload {
     pub fn new(user_id: i64) -> Self {
-        let exp = (OffsetDateTime::now_utc() + time::Duration::days(SESSION_TTL_DAYS))
-            .unix_timestamp();
+        let exp =
+            (OffsetDateTime::now_utc() + time::Duration::days(SESSION_TTL_DAYS)).unix_timestamp();
         Self { user_id, exp }
     }
 
@@ -105,11 +107,16 @@ pub fn refresh_cookie<'a>(user_id: i64) -> Cookie<'a> {
     make_cookie(encode_session(&SessionPayload::new(user_id)))
 }
 
-pub async fn authenticate(pool: &sqlx::SqlitePool, username: &str, password: &str) -> AppResult<i64> {
-    let row: Option<(i64, String)> = sqlx::query_as("SELECT id, password_hash FROM users WHERE username = ?")
-        .bind(username)
-        .fetch_optional(pool)
-        .await?;
+pub async fn authenticate(
+    pool: &sqlx::SqlitePool,
+    username: &str,
+    password: &str,
+) -> AppResult<i64> {
+    let row: Option<(i64, String)> =
+        sqlx::query_as("SELECT id, password_hash FROM users WHERE username = ?")
+            .bind(username)
+            .fetch_optional(pool)
+            .await?;
     let Some((id, password_hash)) = row else {
         return Err(AppError::Unauthorized);
     };

@@ -220,14 +220,12 @@ async fn archive_project(
         return Ok(Json(project));
     }
     if archived {
-        sqlx::query(
-            "UPDATE projects SET archived_at = ? WHERE id = ? AND user_id = ?",
-        )
-        .bind(new_ts)
-        .bind(id)
-        .bind(user.0)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("UPDATE projects SET archived_at = ? WHERE id = ? AND user_id = ?")
+            .bind(new_ts)
+            .bind(id)
+            .bind(user.0)
+            .execute(&mut *tx)
+            .await?;
     } else {
         sqlx::query("UPDATE projects SET archived_at = NULL WHERE id = ? AND user_id = ?")
             .bind(id)
@@ -246,7 +244,11 @@ async fn archive_project(
         &mut tx,
         user.0,
         CTX_PROJECT,
-        if archived { "archive_project" } else { "unarchive_project" },
+        if archived {
+            "archive_project"
+        } else {
+            "unarchive_project"
+        },
         &[SubOp::PatchProject {
             id,
             fields: serde_json::json!({ "archived_at": forward_val }),
@@ -301,7 +303,10 @@ async fn delete_project(
         backward.push(SubOp::InsertTask { row: snap });
     }
     for (blocked_id, blocker_id) in deps {
-        backward.push(SubOp::InsertTaskDep { blocked_id, blocker_id });
+        backward.push(SubOp::InsertTaskDep {
+            blocked_id,
+            blocker_id,
+        });
     }
     record_history(
         &mut tx,

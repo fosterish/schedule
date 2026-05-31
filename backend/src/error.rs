@@ -54,12 +54,18 @@ impl IntoResponse for AppError {
                 sqlx::Error::RowNotFound => (StatusCode::NOT_FOUND, "not found".to_string()),
                 other => {
                     tracing::error!("sqlx error: {:?}", other);
-                    (StatusCode::INTERNAL_SERVER_ERROR, "database error".to_string())
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "database error".to_string(),
+                    )
                 }
             },
             AppError::Other(e) => {
                 tracing::error!("internal error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "internal error".to_string(),
+                )
             }
         };
         (status, Json(json!({"error": msg}))).into_response()

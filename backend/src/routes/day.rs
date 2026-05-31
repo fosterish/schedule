@@ -245,9 +245,7 @@ async fn run_today(
         None => fallback_now_min,
         Some(v) => {
             if !(0..=2879).contains(&v) {
-                return Err(AppError::bad_request(
-                    "at_min must be in [0, 2879]",
-                ));
+                return Err(AppError::bad_request("at_min must be in [0, 2879]"));
             }
             v
         }
@@ -346,14 +344,12 @@ async fn run_today(
                 .execute(&mut *tx)
                 .await?;
         } else {
-            sqlx::query(
-                "UPDATE schedule_items SET start_min = ?, end_min = ? WHERE id = ?",
-            )
-            .bind(it.start_min)
-            .bind(it.end_min)
-            .bind(it.id)
-            .execute(&mut *tx)
-            .await?;
+            sqlx::query("UPDATE schedule_items SET start_min = ?, end_min = ? WHERE id = ?")
+                .bind(it.start_min)
+                .bind(it.end_min)
+                .bind(it.id)
+                .execute(&mut *tx)
+                .await?;
         }
     }
 
@@ -403,7 +399,9 @@ fn apply_action(
                 normalize_zero_duration(items);
                 Ok(())
             }
-            _ => Err(AppError::conflict("only Play is enabled before schedule start")),
+            _ => Err(AppError::conflict(
+                "only Play is enabled before schedule start",
+            )),
         }
     } else if now_min >= sched.end_min {
         // CASE 3
@@ -412,7 +410,9 @@ fn apply_action(
         match action {
             RunAction::Play => {
                 if last_fixed_end {
-                    return Err(AppError::conflict("Play disabled after schedule end (last item has fixed end)"));
+                    return Err(AppError::conflict(
+                        "Play disabled after schedule end (last item has fixed end)",
+                    ));
                 }
                 let first = walk_back(items, last_idx);
                 let n = (last_idx - first + 1) as i64;
@@ -436,18 +436,21 @@ fn apply_action(
             }
             RunAction::Skip => {
                 if last_fixed_end {
-                    return Err(AppError::conflict("Skip disabled after schedule end (last item has fixed end)"));
+                    return Err(AppError::conflict(
+                        "Skip disabled after schedule end (last item has fixed end)",
+                    ));
                 }
                 let first = walk_back(items, last_idx);
                 if first == last_idx {
-                    return Err(AppError::conflict("Skip disabled (only one item in final block)"));
+                    return Err(AppError::conflict(
+                        "Skip disabled (only one item in final block)",
+                    ));
                 }
                 let n = (last_idx - first + 1) as i64;
                 sched.end_min = sched.end_min.max(now_min + (1).max(n - 1));
                 items[first].end_min = Some(now_min);
                 normalize_zero_duration(items);
-                let remaining: Vec<&ScheduleItem> =
-                    items.iter().filter(|i| i.id >= 0).collect();
+                let remaining: Vec<&ScheduleItem> = items.iter().filter(|i| i.id >= 0).collect();
                 if remaining.is_empty() {
                     return Ok(());
                 }
@@ -493,10 +496,7 @@ fn current_item_idx(
     let raw = assigned
         .iter()
         .position(|(s, e)| now_min >= *s && now_min < *e)?;
-    if raw > 0
-        && items[raw - 1].end_min == Some(now_min)
-        && items[raw].start_min.is_none()
-    {
+    if raw > 0 && items[raw - 1].end_min == Some(now_min) && items[raw].start_min.is_none() {
         return None;
     }
     Some(raw)
@@ -634,8 +634,10 @@ fn apply_gap_action(
             None => Err(AppError::conflict("no previous fixed-end item to extend")),
         },
         RunAction::Skip => {
-            let pe = prev_fixed_end_idx.ok_or_else(|| AppError::conflict("Skip disabled in leading gap"))?;
-            let ni = next_item_idx.ok_or_else(|| AppError::conflict("Skip disabled at end of schedule"))?;
+            let pe = prev_fixed_end_idx
+                .ok_or_else(|| AppError::conflict("Skip disabled in leading gap"))?;
+            let ni = next_item_idx
+                .ok_or_else(|| AppError::conflict("Skip disabled at end of schedule"))?;
             items[pe].end_min = Some(now_min);
             items[ni].start_min = Some(now_min);
             normalize_zero_duration(items);
@@ -695,7 +697,12 @@ mod tests {
         }
     }
 
-    fn mk_item(id: i64, position: f64, start_min: Option<i64>, end_min: Option<i64>) -> ScheduleItem {
+    fn mk_item(
+        id: i64,
+        position: f64,
+        start_min: Option<i64>,
+        end_min: Option<i64>,
+    ) -> ScheduleItem {
         ScheduleItem {
             id,
             schedule_id: 1,
@@ -714,12 +721,7 @@ mod tests {
         }
     }
 
-    fn run(
-        action: RunAction,
-        now_min: i64,
-        sched: &mut Schedule,
-        items: &mut Vec<ScheduleItem>,
-    ) {
+    fn run(action: RunAction, now_min: i64, sched: &mut Schedule, items: &mut Vec<ScheduleItem>) {
         let layout = compute_layout(sched, items);
         let assigned: Vec<(i64, i64)> = layout
             .items
@@ -746,7 +748,10 @@ mod tests {
         assert!(items.iter().all(|it| it.id > 0), "no deletions on Stop");
 
         run(RunAction::Play, 600, &mut sched, &mut items);
-        assert!(items.iter().all(|it| it.id > 0), "no deletions on Stop→Play");
+        assert!(
+            items.iter().all(|it| it.id > 0),
+            "no deletions on Stop→Play"
+        );
         let b = items.iter().find(|it| it.id == 2).expect("B retained");
         assert_eq!((b.start_min, b.end_min), (Some(540), Some(600)));
         let c = items.iter().find(|it| it.id == 3).expect("C retained");
@@ -768,7 +773,10 @@ mod tests {
         run(RunAction::Stop, 600, &mut sched, &mut items);
         run(RunAction::Skip, 600, &mut sched, &mut items);
 
-        assert!(items.iter().all(|it| it.id > 0), "no deletions on Stop→Skip");
+        assert!(
+            items.iter().all(|it| it.id > 0),
+            "no deletions on Stop→Skip"
+        );
         let b = items.iter().find(|it| it.id == 2).expect("B retained");
         assert_eq!((b.start_min, b.end_min), (Some(540), Some(600)));
         let c = items.iter().find(|it| it.id == 3).expect("C retained");
@@ -823,7 +831,10 @@ mod tests {
         assert_eq!(items[1].start_min, Some(545));
 
         run(RunAction::Skip, 600, &mut sched, &mut items);
-        assert!(items.iter().all(|it| it.id > 0), "no deletions in normal sequence");
+        assert!(
+            items.iter().all(|it| it.id > 0),
+            "no deletions in normal sequence"
+        );
         let it1 = &items[1];
         assert_eq!(it1.end_min, Some(600));
         let it2 = &items[2];
