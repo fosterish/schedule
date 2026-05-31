@@ -15,6 +15,11 @@ m.route.prefix = import.meta.env.BASE_URL.replace(/\/+$/, "");
 // Startup smoke check to surface a down server during development.
 api.health().catch(() => {});
 
+// Safari ignores maximum-scale/touch-action for trackpad and legacy iOS pinch; suppress its gesture-zoom so page scale stays fixed.
+for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+}
+
 // Top-level tab panes stay mounted (visibility-toggled) for instant return; sub-routes mount transiently and hide them.
 const App = {
   oninit(vnode) {

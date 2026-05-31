@@ -53,6 +53,8 @@ body {
   font-family: var(--font);
   font-size: 14px;
   line-height: 1.4;
+  /* Disable browser pinch/double-tap page zoom while keeping scroll; the timeline runs its own pinch-to-zoom instead. */
+  touch-action: pan-x pan-y;
 }
 
 main#app {
@@ -1255,7 +1257,9 @@ button .label + .icon {
 .timeline {
   position: relative;
   border-left: 2px solid var(--border);
+  /* Symmetric gutters: the left holds hour labels, the right gives a touch-scroll strip clear of blocks (and holds media badges). */
   margin-left: 60px;
+  margin-right: 60px;
   min-height: 200px;
 }
 
@@ -1343,8 +1347,9 @@ button .label + .icon {
 
 .hour-line {
   position: absolute;
+  /* Span both gutters so the grid reads as one continuous timeline across the full viewport. */
   left: -60px;
-  right: 0;
+  right: -60px;
   border-top: 1px dashed var(--border);
 }
 
@@ -1360,14 +1365,14 @@ button .label + .icon {
   padding-right: 6px;
 }
 
-/* Media badges pinned to the gutter at the target item's midpoint; translateX(-100%) grows left, translateY(-50%) centers. */
+/* Media badges pinned to the right gutter at the target item's midpoint; translateX(100%) grows right, translateY(-50%) centers. */
 .media-badges {
   position: absolute;
-  left: 0;
-  transform: translate(-100%, -50%);
+  right: 0;
+  transform: translate(100%, -50%);
   display: flex;
   gap: 3px;
-  padding-right: 8px;
+  padding-left: 8px;
   z-index: 3;
 }
 

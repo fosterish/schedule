@@ -1829,6 +1829,8 @@ async function onDragEnd(vnode, self, event) {
 
 // Pinch tracks finger distance (clamped to the fit floor and a soft max); release snaps to the nearest availableSteps entry.
 function handlePinchStart(vnode, e) {
+  // Claim the two-finger gesture so the browser neither scrolls nor zooms the page mid-pinch.
+  e.preventDefault();
   const [a, b] = e.touches;
   const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   vnode.state.pinch = {
@@ -1841,6 +1843,7 @@ function handlePinchMove(vnode, e) {
   if (e.touches.length < 2) return;
   const pinch = vnode.state.pinch;
   if (!pinch) return;
+  e.preventDefault();
   const [a, b] = e.touches;
   const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   const ratio = dist / pinch.startDist;
