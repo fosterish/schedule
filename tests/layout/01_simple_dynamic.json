@@ -1,0 +1,17 @@
+{
+  "name": "three dynamic items share a window equally",
+  "schedule": { "start_min": 540, "end_min": 720 },
+  "items": [
+    { "id": 1, "position": 1, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 2, "position": 2, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 3, "position": 3, "start_min": null, "end_min": null, "duration_target": 1 }
+  ],
+  "expected": {
+    "items": [
+      { "id": 1, "assigned_start": 540, "assigned_end": 600, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 2, "assigned_start": 600, "assigned_end": 660, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 3, "assigned_start": 660, "assigned_end": 720, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } }
+    ],
+    "errors": []
+  }
+}

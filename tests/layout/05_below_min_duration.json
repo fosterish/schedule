@@ -1,0 +1,12 @@
+{
+  "name": "five dynamic items in a 3-minute window flags below_min",
+  "schedule": { "start_min": 0, "end_min": 3 },
+  "items": [
+    { "id": 1, "position": 1, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 2, "position": 2, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 3, "position": 3, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 4, "position": 4, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 5, "position": 5, "start_min": null, "end_min": null, "duration_target": 1 }
+  ],
+  "expected_errors_contain": ["BelowMinDuration"]
+}

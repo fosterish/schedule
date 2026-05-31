@@ -1,0 +1,17 @@
+{
+  "name": "two dynamic items share a 90-min segment proportionally",
+  "schedule": { "start_min": 0, "end_min": 180 },
+  "items": [
+    { "id": 1, "position": 1, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 2, "position": 2, "start_min": null, "end_min": null, "duration_target": 2 },
+    { "id": 3, "position": 3, "start_min": 90, "end_min": 180, "duration_target": 90 }
+  ],
+  "expected": {
+    "items": [
+      { "id": 1, "assigned_start": 0, "assigned_end": 30, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 2, "assigned_start": 30, "assigned_end": 90, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 3, "assigned_start": 90, "assigned_end": 180, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } }
+    ],
+    "errors": []
+  }
+}

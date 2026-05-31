@@ -1,0 +1,19 @@
+{
+  "name": "fixed-edge items anchor neighbors into segments",
+  "schedule": { "start_min": 540, "end_min": 1080 },
+  "items": [
+    { "id": 1, "position": 1, "start_min": 540, "end_min": 555, "duration_target": 15 },
+    { "id": 2, "position": 2, "start_min": null, "end_min": null, "duration_target": 120 },
+    { "id": 3, "position": 3, "start_min": 720, "end_min": 780, "duration_target": 60 },
+    { "id": 4, "position": 4, "start_min": null, "end_min": null, "duration_target": 60 }
+  ],
+  "expected": {
+    "items": [
+      { "id": 1, "assigned_start": 540, "assigned_end": 555, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 2, "assigned_start": 555, "assigned_end": 720, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 3, "assigned_start": 720, "assigned_end": 780, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 4, "assigned_start": 780, "assigned_end": 1080, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } }
+    ],
+    "errors": []
+  }
+}

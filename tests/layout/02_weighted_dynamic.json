@@ -1,0 +1,15 @@
+{
+  "name": "dynamic items share proportionally to duration_target",
+  "schedule": { "start_min": 0, "end_min": 120 },
+  "items": [
+    { "id": 1, "position": 1, "start_min": null, "end_min": null, "duration_target": 1 },
+    { "id": 2, "position": 2, "start_min": null, "end_min": null, "duration_target": 3 }
+  ],
+  "expected": {
+    "items": [
+      { "id": 1, "assigned_start": 0, "assigned_end": 30, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } },
+      { "id": 2, "assigned_start": 30, "assigned_end": 120, "flags": { "overflow": false, "out_of_bounds": false, "below_min": false } }
+    ],
+    "errors": []
+  }
+}

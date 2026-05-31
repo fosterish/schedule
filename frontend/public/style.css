@@ -1,0 +1,1979 @@
+/* Base reset + tokens */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #fafafa;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f3f3f5;
+  --fg: #1c1c1f;
+  --fg-muted: #6b6b73;
+  --border: #e4e4e9;
+  --border-strong: #cdcdd4;
+  --accent: #4b69ff;
+  --accent-fg: #ffffff;
+  --danger: #d6463a;
+  --ok: #2c8a4a;
+  --warn: #c47b1b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --radius: 6px;
+  --radius-lg: 10px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono: ui-monospace, "Fira Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181819;
+    --bg-elev: #222225;
+    --bg-elev-2: #2a2a2e;
+    --fg: #e9e9ec;
+    --fg-muted: #9a9aa3;
+    --border: #34343a;
+    --border-strong: #4b4b53;
+    --accent: #7d92ff;
+    --accent-fg: #0c0c14;
+    --danger: #ef6b62;
+    --ok: #79c997;
+    --warn: #e2a35a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+main#app {
+  min-height: 100vh;
+  display: block;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--bg-elev-2);
+  border-color: var(--border-strong);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="time"],
+input[type="date"],
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  /* Pin line-height so `<select>` matches `<input>` height; browsers give selects a different intrinsic line-height. */
+  line-height: 1.4;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Shared min-height: Chromium ignores line-height on `<select>`. 14px×1.4 + 12 padding + 2 border ≈ 34px. */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="time"],
+input[type="date"],
+select {
+  min-height: 34px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+/* Shell */
+/* === Shell + folio tabs ============================================= */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  /* Shell fills the viewport exactly so the tab body can carve a fixed-height internally-scrolling region. */
+  height: 100vh;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.shell-bar-narrow {
+  display: none;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--bg);
+}
+
+.shell-user {
+  display: flex;
+  align-items: center;
+}
+
+.shell-user-wide {
+  display: flex;
+  align-items: center;
+  padding: 0 12px 6px;
+}
+
+.tab-bar {
+  display: flex;
+  align-items: flex-end;
+  padding: 16px 12px 0;
+  gap: 4px;
+  background: var(--bg);
+}
+
+.tab-bar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+a.tab {
+  position: relative;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  background: var(--bg-elev-2);
+  color: var(--fg-muted);
+  font-weight: 500;
+  margin-bottom: -1px;
+  user-select: none;
+}
+
+a.tab:hover {
+  text-decoration: none;
+  background: var(--bg-elev);
+  color: var(--fg);
+}
+
+a.tab.active {
+  background: var(--bg-elev);
+  color: var(--fg);
+  border-bottom-color: var(--bg-elev);
+  z-index: 1;
+}
+
+.tab-body {
+  position: relative;
+  flex: 1;
+  /* Active `.tab-pane` stretches to fill; its scroll region lives inside the pane so the body's border stays fixed. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  /* Top-left squared off so the body flows into the first tab's bottom-left edge; other corners rounded. */
+  border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  margin: 0 12px 12px;
+}
+
+/* Active `.tab-pane` stretches to fill `.tab-body`; inactive panes get inline `display:none`. */
+.tab-pane {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Fixed toolbar strip above the `.tab-scroll` sibling; stacks a title/actions row and a right-aligned controls row. */
+.tab-fixed-header {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+
+.tab-fixed-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Shared toolbar row: `min-height` pins every row to a labelled-button height so icon-only rows aren't shorter. */
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+/* `[left] .spacer-h [right]`: the spacer alone separates left navigation from right controls, no per-row `justify-content`. */
+
+/* Filter input + inline clear X: wrapper anchors the absolute X; input reserves right padding for text. */
+.filter-input {
+  position: relative;
+  display: inline-block;
+  width: 200px;
+  max-width: 100%;
+}
+.filter-input input {
+  width: 100%;
+  padding-right: 28px;
+}
+.icon-btn.filter-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  /* Reset the shared 34px square to auto: the parent input supplies padding, so this stays a compact glyph. */
+  width: auto;
+  height: auto;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+}
+.icon-btn.filter-clear:hover {
+  color: var(--fg);
+  background: transparent;
+}
+
+/* Scrolls vertically on overflow; `min-height: 0` lets the flex child shrink below content size to trigger scroll. */
+.tab-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Slim divider between icon-button groups; subtler than a full border. */
+.tab-fixed-header .toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Responsive: stack the user info above the tabs when narrow. */
+@media (max-width: 500px) {
+  .shell-bar-narrow {
+    display: flex;
+  }
+  .shell-user-wide {
+    display: none;
+  }
+  .tab-bar {
+    padding-top: 8px;
+  }
+}
+
+.shell-user .user {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+/* Narrow-mode logout: plain text link, not a button, so the header stays compact; underlined to read as actionable. */
+.shell-user .logout-link {
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.shell-user .logout-link:hover,
+.shell-user .logout-link:focus {
+  color: var(--fg);
+}
+
+/* "Unknown route" screen: no Shell wrapper, so only the button or URL edit leaves; centered heading + action. */
+.not-found-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.not-found-screen h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* Login */
+.login-card {
+  max-width: 320px;
+  margin: 10vh auto 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.login-card h1 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.login-card label {
+  display: block;
+  margin: 12px 0 4px;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.login-card .error {
+  margin-top: 12px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.login-card .submit {
+  margin-top: 16px;
+  width: 100%;
+}
+
+/* Generic helpers */
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Tighter row variant grouping toolbar icon-buttons; `.tab-fixed-header` still separates groups with its 8px gap. */
+.row.row-tight {
+  gap: 4px;
+}
+
+
+.muted {
+  color: var(--fg-muted);
+}
+
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.empty {
+  color: var(--fg-muted);
+  font-style: italic;
+  padding: 24px;
+  text-align: center;
+}
+
+/* No-schedule empty state: message above a `[Create] [Fork]` action row that wraps on narrow viewports. */
+.empty-state {
+  margin-top: 40px;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-state .empty-state-msg {
+  margin: 0 0 16px;
+  color: var(--fg-muted);
+}
+
+.empty-state .empty-state-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Icon+label buttons get flex alignment so the icon optically centers with the label rather than sitting on the baseline. */
+button:has(> .icon + .label),
+button:has(> .label + .icon) {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 8px;
+}
+
+
+/* Popup / modal */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8vh 16px;
+}
+
+.popup {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  width: 420px;
+  max-width: 100%;
+  padding: 18px 20px;
+  position: relative;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.popup h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Placeholder title when the popup has none; keeps the header row height so the close button stays put. */
+.popup h3.is-empty {
+  flex: 1;
+  visibility: hidden;
+}
+
+.popup-corner {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.popup-corner > .icon-btn {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.popup-corner > .icon-btn:hover {
+  background: var(--bg-elev-2);
+  color: var(--fg);
+}
+
+/* Trash button: faint red at rest so it reads destructive; hover deepens to full danger. */
+.popup-corner > .icon-btn.danger {
+  color: color-mix(in srgb, var(--danger) 55%, var(--fg-muted));
+}
+
+.popup-corner > .icon-btn.danger:hover {
+  color: var(--danger);
+}
+
+/* Close button sized to match the adjacent 28x28 frameless trash button so both share an identical header height. */
+.popup .close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 6px;
+  line-height: 0;
+  cursor: pointer;
+  color: var(--fg-muted);
+}
+.popup .close .icon {
+  width: 16px;
+  height: 16px;
+}
+.popup .close:hover {
+  background: var(--bg-elev-2);
+  color: var(--fg);
+}
+
+.popup .field {
+  display: block;
+  margin: 10px 0;
+}
+
+.popup .field-label {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin-bottom: 4px;
+}
+
+/* Click-to-toggle label; `.rotated` spins the chevron 90° so one SVG serves both states. */
+.collapsible-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  /* Reserve the single-line control height so a collapsed header reads as a full-height row, not bare text. */
+  min-height: 34px;
+}
+.collapsible-label .icon.rotated {
+  transform: rotate(90deg);
+}
+
+.popup .actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Bottom-right action row (create flow); right-aligns so "Add" reads as the terminal action. */
+.popup-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Wraps an Add-button warning above the controls row; the warning sits on its own line above checkbox + Add. */
+.popup-add-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+}
+
+.popup-add-row .popup-warning {
+  align-self: flex-end;
+}
+
+.popup-add-row-controls {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+}
+
+/* `margin-right: auto` pushes the Add button right; no separate spacer element needed. */
+.repos-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  user-select: none;
+  margin-right: auto;
+}
+
+.repos-checkbox input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.popup-warning {
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: right;
+}
+
+/* Lists */
+.list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  /* Rows are clickable → pointer cursor; subtask rows override to `cursor: grab` since they drag from the body. */
+  cursor: pointer;
+}
+
+.list-row:hover {
+  border-color: var(--border-strong);
+}
+
+/* Shared colored identity for project + subtask rows: 4px left accent + dim same-color tint from inline `--block-color`. */
+.list-row.project-row,
+.list-row.task-row {
+  --block-color: var(--accent);
+  background: color-mix(in srgb, var(--block-color) 18%, var(--bg-elev));
+  border-left: 4px solid var(--block-color);
+  padding-left: 7px;
+}
+
+.list-row.project-row {
+  /* Let `.project-row-meta` wrap below the title on narrow viewports; a no-op once contents fit. */
+  flex-wrap: wrap;
+  /* Collapse line-height to 1 so text line-boxes match the 14px pips' height and share optical centers. */
+  line-height: 1;
+}
+
+/* Breathing room so the name doesn't sit flush against the colored left accent. */
+.list-row.project-row .name {
+  margin-left: 4px;
+}
+
+/* Preserve the colored left accent on hover; otherwise `.list-row:hover` repaints it to the neutral tint. */
+.list-row.project-row:hover,
+.list-row.task-row:hover {
+  border-left-color: var(--block-color);
+}
+
+/* Subtask rows drag from their body: advertise grab; suppress text selection and iOS long-press callout. */
+.list-row.task-row {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Completed rows aren't reorderable, so drop the grab affordance (tap still opens the popup). */
+.list-row.task-row.completed {
+  cursor: pointer;
+}
+
+/* Right-aligned "blocked by N" badge; never shrink or wrap so it stays legible. */
+.list-row .blocked-by {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Archived rows keep their accent but dim to read "out of the way"; hover restores opacity for legibility. */
+.list-row.project-row.archived {
+  opacity: 0.55;
+}
+.list-row.project-row.archived:hover {
+  opacity: 0.85;
+}
+
+/* Floating drag ghost pinned to the cursor; translucent like `.timeline-block.dragging` so rows underneath stay visible. */
+.list-row.dragging {
+  z-index: 30;
+  opacity: 0.85;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  border-color: var(--border-strong);
+  /* Keep the parent project's left edge so the ghost reads as the lifted row. */
+  border-left-color: var(--block-color);
+  cursor: grabbing;
+  /* Slight lift confirms the press-and-hold armed the drag; pairs with the touch haptic tick. */
+  transform: scale(1.02);
+  pointer-events: none;
+}
+
+/* Lock the scroll container mid-drag so a touch drag reorders instead of panning; quick swipes still scroll. */
+.tab-scroll.drag-active {
+  touch-action: none;
+}
+
+/* Dashed slot held open at the drop position during a subtask drag —
+ * matches the schedule's `.timeline-block.placeholder`. */
+.list-row.placeholder {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: var(--bg);
+  box-shadow: none;
+  pointer-events: none;
+}
+
+/* Dull-red highlight on a dep row the current drop would violate; explains why the drop snaps back. */
+.list-row.dep-conflict,
+.list-row.dep-conflict:hover {
+  border-color: var(--danger, #d9534f);
+  background: color-mix(in srgb, var(--danger, #d9534f) 14%, var(--bg-elev));
+}
+
+.list-row.completed .name {
+  text-decoration: line-through;
+  color: var(--fg-muted);
+}
+
+.spacer-h {
+  flex: 1;
+}
+
+/* Header rows */
+.tab-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.tab-header .actions-right {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.menu {
+  position: relative;
+}
+.menu-items {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 160px;
+  z-index: 50;
+  box-shadow: var(--shadow);
+  padding: 4px;
+}
+.menu-items button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+}
+.menu-items button:hover {
+  background: var(--bg-elev-2);
+}
+
+/* Right-aligned stat columns (Subtasks/Value/Time); each is a labeled column. `.project-detail-stats` reuses this chrome. */
+.list-row .project-stat,
+.project-detail-stats .project-stat {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 6px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.list-row .project-stat-label,
+.project-detail-stats .project-stat-label {
+  color: var(--fg-muted);
+}
+
+.list-row .project-stat-value,
+.project-detail-stats .project-stat-value {
+  color: var(--fg);
+}
+
+/* Wide screens: title and read-only pips on one line; narrow screens stack them (see @media below). */
+.project-detail-titleblock {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.project-detail-stats {
+  display: flex;
+  gap: 16px;
+}
+/* Detail header lacks the list-row `line-height: 1`, so center the label against the pips directly here. */
+.project-detail-stats .project-stat {
+  align-items: center;
+  line-height: 1;
+}
+
+/* Wrap-unit gluing meta + edit together so the row only breaks before the trailer; goes `display: contents` at ≤500px. */
+.list-row.project-row .project-row-trailer {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  /* `margin-left: auto` right-aligns the trailer on its own wrapped line 2, where spacer-h can't. */
+  margin-left: auto;
+}
+
+.list-row.project-row .project-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+/* Narrow viewport: stack stats below the title on their own line; `order: 1` keeps edit top-right on line 1. */
+@media (max-width: 500px) {
+  .list-row.project-row .project-row-trailer {
+    display: contents;
+  }
+  .list-row.project-row .project-row-meta {
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 6px;
+    order: 2;
+  }
+  .list-row.project-row .project-row-edit {
+    order: 1;
+  }
+  /* When the titleblock stacks, pin the action cluster to the top instead of centering against the tall column. */
+  .project-detail-head {
+    align-items: flex-start;
+  }
+  /* Stack the title over its pips when there's no inline room; add space below so they're not cramped. */
+  .project-detail-titleblock {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  /* Stack Value/Time pips vertically when there's no room side-by-side. */
+  .project-detail-stats {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* Field grid */
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Start + Duration grid: two rows so anchor buttons span only the inputs row and share its height. */
+.timing-row {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 4px;
+  width: 100%;
+  margin: 10px 0;
+}
+.timing-row.placeholder {
+  grid-template-columns: auto 1fr 1fr;
+}
+.timing-row > .field-label {
+  grid-row: 1;
+  margin-bottom: 0;
+}
+/* Span the anchor cell + start input so "Start" begins at the popup's left edge, aligned with other labels. */
+.timing-row > .timing-label-start {
+  grid-column: 1 / 3;
+}
+.timing-row > .timing-label-dur {
+  grid-column: 3;
+}
+.timing-row > .anchor-btn,
+.timing-row > .timing-input-start,
+.timing-row > .timing-input-dur {
+  grid-row: 2;
+}
+.timing-row > .timing-input-start {
+  grid-column: 2;
+}
+.timing-row > .timing-input-dur {
+  grid-column: 3;
+}
+
+/* Identity row: Type select + Name/Project. Two-row grid like `.timing-row` so the controls share one baseline height. */
+.identity-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 4px;
+  width: 100%;
+  margin: 10px 0;
+  align-items: stretch;
+}
+.identity-row > .field-label {
+  grid-row: 1;
+  margin-bottom: 0;
+}
+.identity-row > .identity-label-type {
+  grid-column: 1;
+}
+.identity-row > .identity-label-target {
+  grid-column: 2;
+}
+.identity-row > .identity-input-type,
+.identity-row > .identity-input-target {
+  grid-row: 2;
+}
+.identity-row > .identity-input-type {
+  grid-column: 1;
+}
+.identity-row > .identity-input-target {
+  grid-column: 2;
+  min-width: 0;
+}
+/* Override `select { width: 100% }` so the Type dropdown collapses to its option-text width. */
+.identity-row > .identity-input-type > select {
+  width: auto;
+}
+
+/* Dependency editor: each row is an inline [type | target | remove] grid sharing a baseline height. */
+.dep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dep-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dep-add {
+  align-self: flex-start;
+}
+/* Inline cycle warning when a pick/flip would close a dependency loop; quiet banner, not a modal. */
+.dep-warning {
+  font-size: 12px;
+  color: var(--danger, #d9534f);
+  background: color-mix(in srgb, var(--danger, #d9534f) 12%, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--danger, #d9534f) 40%, transparent);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+}
+.dep-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 8px;
+  align-items: center;
+}
+/* Type dropdown sizes to its text rather than the global full width. */
+.dep-row > select {
+  width: auto;
+}
+/* Wrapper anchors the typeahead results list to the input's width. */
+.dep-search {
+  position: relative;
+  min-width: 0;
+}
+.dep-search > input {
+  width: 100%;
+}
+/* Reuses `.menu-items` chrome but spans the input width and scrolls when the match list is long. */
+.dep-search-results {
+  left: 0;
+  right: 0;
+  min-width: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+/* Locked target reads as plain text — a display of the already-chosen task, not editable. */
+.dep-target-locked {
+  color: var(--fg-muted);
+}
+/* Row trash button: faint-red at rest, full danger on hover — mirrors the header trash. */
+.icon-btn.dep-remove {
+  color: color-mix(in srgb, var(--danger) 55%, var(--fg-muted));
+}
+.icon-btn.dep-remove:hover {
+  color: var(--danger);
+}
+
+/* Monochrome icons as CSS masks over `currentColor`; SVGs provide shape only, color inherits from the host. */
+.icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+          mask-position: center;
+  -webkit-mask-size: contain;
+          mask-size: contain;
+  flex-shrink: 0;
+}
+
+.icon-anchor {
+  -webkit-mask-image: url("icons/anchor.svg");
+          mask-image: url("icons/anchor.svg");
+}
+/* Per-edge anchor glyphs: `icon-anchor-left` pins the Start edge, `icon-anchor-right` the End edge. */
+.icon-anchor-left {
+  -webkit-mask-image: url("icons/anchor-left.svg");
+          mask-image: url("icons/anchor-left.svg");
+}
+.icon-anchor-right {
+  -webkit-mask-image: url("icons/anchor-right.svg");
+          mask-image: url("icons/anchor-right.svg");
+}
+.icon-caret-up {
+  -webkit-mask-image: url("icons/caret-up.svg");
+          mask-image: url("icons/caret-up.svg");
+}
+.icon-caret-down {
+  -webkit-mask-image: url("icons/caret-down.svg");
+          mask-image: url("icons/caret-down.svg");
+}
+.icon-chevron-left {
+  -webkit-mask-image: url("icons/chevron-left.svg");
+          mask-image: url("icons/chevron-left.svg");
+}
+.icon-chevron-right {
+  -webkit-mask-image: url("icons/chevron-right.svg");
+          mask-image: url("icons/chevron-right.svg");
+}
+.icon-undo {
+  -webkit-mask-image: url("icons/undo.svg");
+          mask-image: url("icons/undo.svg");
+}
+.icon-redo {
+  -webkit-mask-image: url("icons/redo.svg");
+          mask-image: url("icons/redo.svg");
+}
+.icon-play {
+  -webkit-mask-image: url("icons/play.svg");
+          mask-image: url("icons/play.svg");
+}
+.icon-skip {
+  -webkit-mask-image: url("icons/skip.svg");
+          mask-image: url("icons/skip.svg");
+}
+.icon-stop {
+  -webkit-mask-image: url("icons/stop.svg");
+          mask-image: url("icons/stop.svg");
+}
+.icon-zoom-in {
+  -webkit-mask-image: url("icons/zoom-in.svg");
+          mask-image: url("icons/zoom-in.svg");
+}
+.icon-zoom-out {
+  -webkit-mask-image: url("icons/zoom-out.svg");
+          mask-image: url("icons/zoom-out.svg");
+}
+.icon-menu-dots {
+  -webkit-mask-image: url("icons/menu-dots.svg");
+          mask-image: url("icons/menu-dots.svg");
+}
+.icon-plus {
+  -webkit-mask-image: url("icons/plus.svg");
+          mask-image: url("icons/plus.svg");
+}
+.icon-close {
+  -webkit-mask-image: url("icons/close.svg");
+          mask-image: url("icons/close.svg");
+}
+
+/* Square 34px icon button matching the add-button height so icon buttons align in a row; inner glyph stays 16px. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  line-height: 0;
+}
+
+/* Pin line-height to the 16px icon height so this text button doesn't ride taller than adjacent icon buttons. */
+.today-btn {
+  line-height: 16px;
+}
+
+/* Nudge the icon down a hair so its optical center matches the text's cap-height. */
+button .icon + .label,
+button .label + .icon {
+  margin-left: 6px;
+}
+
+/* Start/end fields in the schedule-item popup: [lock] [HH:MM input] [↕]. */
+.timing-field {
+  /* Tighten the `.row` gap and stretch vertically so lock/spinner match the input's height. */
+  gap: 4px;
+  align-items: stretch;
+}
+
+.timing-field .autofield {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.timing-field .autofield input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* "Anchor" toggle: dropped (opaque) when the side is fixed, raised (dim) when dynamic. */
+.anchor-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 4px 6px;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.32;
+  transition: opacity 0.1s ease, background 0.1s ease;
+}
+
+.anchor-btn:hover {
+  opacity: 0.7;
+  background: var(--bg-elev-2);
+}
+
+.anchor-btn.fixed {
+  opacity: 1;
+  border-color: var(--border);
+}
+
+.anchor-btn.fixed:hover {
+  /* Slight dim on hover previews the "raised" / dynamic state. */
+  opacity: 0.78;
+  background: var(--bg-elev-2);
+}
+
+/* Read-only stand-in mirroring the editable ClockField so toggling anchor doesn't shift layout; non-interactive and dimmed. */
+.timing-field-readonly input[readonly] {
+  background: var(--bg-elev);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  cursor: default;
+  pointer-events: none;
+  font: inherit;
+}
+
+/* Soft-red wash for a timing input needing a cross-field validity tint. */
+.timing-field-invalid input,
+.timing-field-invalid .autofield input {
+  background: color-mix(in srgb, var(--danger) 18%, var(--bg-elev));
+}
+
+/* Vertical up/down spinner; flex-sized so the two buttons fill the row height set by the input. */
+.spinner {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.spinner-btn {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  flex: 1 1 0;
+  min-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--fg-muted);
+}
+
+.spinner-btn:hover {
+  background: var(--bg-elev-2);
+  color: var(--fg);
+}
+
+.spinner-btn .icon {
+  width: 10px;
+  height: 10px;
+}
+
+/* Timeline */
+.timeline-wrap {
+  position: relative;
+  /* Vertical gaps give the start/end bound drag handles room outside the timeline so they aren't clipped. */
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.timeline {
+  position: relative;
+  border-left: 2px solid var(--border);
+  margin-left: 60px;
+  min-height: 200px;
+}
+
+/* `.zooming` (toggled ~250ms by changeZoom) animates pxPerMin-derived sizes; linear timing keeps the centered minute pinned. */
+.timeline.zooming {
+  transition: height 0.25s linear;
+}
+
+.timeline.zooming .timeline-block,
+.timeline.zooming .hour-line,
+.timeline.zooming .schedule-bound,
+.timeline.zooming .time-cursor {
+  transition: top 0.25s linear, height 0.25s linear;
+}
+
+/* Schedule start/end marker lines: above the hour grid but below items; labels sit just outside, right-aligned. */
+.schedule-bound {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border-strong);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.schedule-bound .label {
+  position: absolute;
+  right: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-muted);
+  line-height: 1;
+  padding: 1px 4px;
+  background: var(--bg-elev);
+}
+
+.schedule-bound.start .label {
+  bottom: 1px;
+}
+
+.schedule-bound.end .label {
+  top: 1px;
+}
+
+/* Drag handles straddling the bound lines (above start, below end); grip dots mirror the item fixed-edge handles. */
+.schedule-bound .bound-handle {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 14px;
+  /* Re-enable hit-testing the parent line opts out of. */
+  pointer-events: auto;
+  touch-action: none;
+  cursor: ns-resize;
+  z-index: 2;
+}
+
+.schedule-bound.start .bound-handle {
+  bottom: 0;
+}
+
+.schedule-bound.end .bound-handle {
+  top: 0;
+}
+
+.schedule-bound .bound-handle::before {
+  content: "";
+  width: 22px;
+  height: 4px;
+  background:
+    radial-gradient(circle at 3px 50%, var(--fg-muted) 0 2px, transparent 2.5px) no-repeat,
+    radial-gradient(circle at 11px 50%, var(--fg-muted) 0 2px, transparent 2.5px) no-repeat,
+    radial-gradient(circle at 19px 50%, var(--fg-muted) 0 2px, transparent 2.5px) no-repeat;
+  opacity: 0.35;
+  transition: opacity 0.1s ease;
+}
+
+.schedule-bound .bound-handle:hover::before {
+  opacity: 0.9;
+}
+
+.hour-line {
+  position: absolute;
+  left: -60px;
+  right: 0;
+  border-top: 1px dashed var(--border);
+}
+
+.hour-label {
+  position: absolute;
+  left: 0;
+  top: -8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-muted);
+  /* Opaque background so the dashed hour line is interrupted by the label, not cut through it. */
+  background: var(--bg-elev);
+  padding-right: 6px;
+}
+
+/* Media badges pinned to the gutter at the target item's midpoint; translateX(-100%) grows left, translateY(-50%) centers. */
+.media-badges {
+  position: absolute;
+  left: 0;
+  transform: translate(-100%, -50%);
+  display: flex;
+  gap: 3px;
+  padding-right: 8px;
+  z-index: 3;
+}
+
+.media-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--accent);
+  cursor: pointer;
+  /* The "faint glow" — a soft accent halo around the badge. */
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: box-shadow 0.15s ease, transform 0.1s ease,
+    background 0.15s ease, color 0.15s ease;
+}
+
+.media-badge:hover {
+  background: var(--accent);
+  /* Keep the glyph light on hover regardless of theme accent-fg (which flips dark in dark mode). */
+  color: #f2f2f5;
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.media-badge:active {
+  transform: scale(0.92);
+}
+
+.media-badge .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.timeline-block {
+  position: absolute;
+  left: 4px;
+  right: 8px;
+  /* `--block-color` set inline per item (fallback `--accent`); fixed/dynamic styling below blends it with `--bg-elev`. */
+  --block-color: var(--accent);
+  --block-bg-dynamic: color-mix(in srgb, var(--block-color) 2%, var(--bg-elev));
+  --fixed-tint: color-mix(in srgb, var(--block-color) 32%, var(--bg-elev));
+  background: var(--block-bg-dynamic);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--block-color);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  overflow: hidden;
+  cursor: grab;
+  box-shadow: var(--shadow);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Establishes a size container so inner `@container (max-height)` queries can switch full/compact layouts. */
+  container-type: size;
+}
+
+/* Both ends fixed: solid, saturated tint of the block color. */
+.timeline-block.start-fixed.end-fixed:not(.placeholder) {
+  background: var(--fixed-tint);
+}
+
+/* Only the start is fixed: tinted at the top, fading to the dynamic-wash
+ * at the (dynamic) bottom edge. */
+.timeline-block.start-fixed:not(.end-fixed):not(.placeholder) {
+  background: linear-gradient(
+    to bottom,
+    var(--fixed-tint),
+    var(--block-bg-dynamic)
+  );
+}
+
+/* Only the end is fixed: mirror image — dynamic-wash at the top, tinted
+ * at the (fixed) bottom edge. */
+.timeline-block.end-fixed:not(.start-fixed):not(.placeholder) {
+  background: linear-gradient(
+    to bottom,
+    var(--block-bg-dynamic),
+    var(--fixed-tint)
+  );
+}
+
+/* Grip dots on fixed edges hint "draggable"; `pointer-events: none` preserves the block's hit-testing. Hidden mid-gesture. */
+.timeline-block.start-fixed:not(.placeholder):not(.dragging)::before,
+.timeline-block.end-fixed:not(.placeholder):not(.dragging)::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 4px;
+  background:
+    radial-gradient(circle at 3px 50%, #fff 0 2px, transparent 2.5px) no-repeat,
+    radial-gradient(circle at 11px 50%, #fff 0 2px, transparent 2.5px) no-repeat,
+    radial-gradient(circle at 19px 50%, #fff 0 2px, transparent 2.5px) no-repeat;
+  opacity: 0.1;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+.timeline-block.start-fixed:not(.placeholder):not(.dragging)::before {
+  top: 3px;
+}
+
+.timeline-block.end-fixed:not(.placeholder):not(.dragging)::after {
+  bottom: 3px;
+}
+
+.timeline-block.start-fixed:hover::before,
+.timeline-block.end-fixed:hover::after {
+  opacity: 0.9;
+}
+
+.timeline-block:active {
+  cursor: grabbing;
+}
+
+/* Placeholder block (reorder drop-slot and new-item draft): dashed sides, solid `--block-color` left accent, faint tint. */
+.timeline-block.placeholder {
+  border-style: dashed;
+  border-left-style: solid;
+  border-color: var(--border-strong);
+  border-left-color: var(--block-color);
+  background: color-mix(in srgb, var(--block-color) 8%, var(--bg-elev));
+  box-shadow: none;
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Floating drag ghost pinned to the cursor, rendered outside the keyed list; translucent so blocks underneath stay visible. */
+.timeline-block.dragging {
+  z-index: 10;
+  border-color: var(--block-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  cursor: grabbing;
+  pointer-events: none;
+  transform: translateZ(0);
+  opacity: 0.55;
+}
+
+.timeline-block:hover {
+  border-color: var(--block-color);
+}
+
+/* Header: name left (ellipsizes), time range right (never shrinks); compact mode adds an inline description between. */
+.timeline-block .block-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.timeline-block .block-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Name yields width to the non-shrinking times block (and the inline description in compact mode). */
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.timeline-block .block-times {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-muted);
+  /* Pin to the right edge of the header row; never shrinks. */
+  margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Standalone description (non-compact mode); `pre-wrap` preserves user newlines while wrapping long lines. */
+.timeline-block .block-desc {
+  margin-top: 2px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+/* Inline description (compact mode); em-dash separator painted via `::before` so it vanishes when absent. */
+.timeline-block .block-inline-desc {
+  display: none;
+  color: var(--fg-muted);
+  font-size: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-block .block-inline-desc::before {
+  /* thin-space + em-dash + thin-space */
+  content: "\2009\2014\2009";
+}
+
+/* Narrow viewport: stack the header so the time range drops below the title; compact mode reverts via @container below. */
+@media (max-width: 500px) {
+  .timeline-block .block-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .timeline-block .block-times {
+    margin-left: 0;
+  }
+  /* Narrow: stack project over tail, drop the colon separator; flex column + `white-space: normal` undo nowrap/ellipsis. */
+  .timeline-block .block-name {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .timeline-block .block-name-sep {
+    display: none;
+  }
+}
+
+/* Compact mode (~<45px): too short to stack name + description, so use the inline treatment. */
+@container (max-height: 44px) {
+  .timeline-block .block-desc {
+    display: none;
+  }
+  .timeline-block .block-inline-desc {
+    display: inline;
+  }
+  /* Compact override of the narrow @media: revert to a single inline row regardless of viewport width. */
+  .timeline-block .block-header {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .timeline-block .block-times {
+    margin-left: auto;
+  }
+  .timeline-block .block-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .timeline-block .block-name-sep {
+    display: inline;
+  }
+}
+
+/* Movable time cursor / now line. Z-index above drag ghost (10), below popup overlay (100); parent is click-through. */
+.time-cursor {
+  position: absolute;
+  left: -68px;
+  right: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Live state: cursor pinned to today's "now", painted danger-red to read as a live clock. */
+.time-cursor.time-cursor-live {
+  --cursor-color: var(--danger);
+}
+
+/* Detached state: user-placed cursor; neutral accent so it reads as "yours, not the clock's". */
+.time-cursor.time-cursor-detached {
+  --cursor-color: var(--accent);
+}
+
+.time-cursor .time-cursor-line {
+  position: absolute;
+  /* Starts at the pill's left edge so the line doesn't poke past the rounded pill end; right end flush. */
+  left: 1px;
+  right: 0;
+  top: 0;
+  border-top: 2px solid var(--cursor-color);
+  pointer-events: none;
+}
+
+/* Wider invisible grab slab centered on the line; `cursor: ns-resize` advertises it's draggable. */
+.time-cursor .time-cursor-hitzone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -7px;
+  height: 14px;
+  pointer-events: auto;
+  cursor: ns-resize;
+  /* Tiny hover/active tint shows where the grab zone lives; hidden by default. */
+  background: transparent;
+  /* `touch-action: none` opts out of touch-scroll so finger drags reach our handler, not the scroll container. */
+  touch-action: none;
+}
+
+.time-cursor .time-cursor-hitzone:hover {
+  background: color-mix(in srgb, var(--cursor-color) 8%, transparent);
+}
+
+/* HH:MM pill: outlined in cursor color, centered on the line; geometry aligns its digits with `.hour-label`. */
+.time-cursor .time-cursor-label {
+  position: absolute;
+  left: 1px;
+  top: 0;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cursor-color);
+  background: var(--bg-elev);
+  border: 1px solid var(--cursor-color);
+  border-radius: 999px;
+  padding: 1px 6px;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* X button: snap-back-to-now (today) or hide-cursor; own pointer-events so clicks don't fall through to reposition. */
+.time-cursor .time-cursor-close {
+  position: absolute;
+  right: 0;
+  top: -10px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--cursor-color);
+  border-radius: 50%;
+  color: var(--cursor-color);
+  cursor: pointer;
+  pointer-events: auto;
+  line-height: 0;
+}
+
+.time-cursor .time-cursor-close:hover {
+  background: var(--cursor-color);
+  color: var(--accent-fg);
+}
+
+.time-cursor .time-cursor-close .icon {
+  width: 10px;
+  height: 10px;
+}
+
+/* Subtle highlight while the cursor is being dragged so the user sees the indicator they've grabbed. */
+.time-cursor.time-cursor-dragging .time-cursor-line {
+  border-top-width: 3px;
+}
+
+/* Calendar: reuses the shared `.tab-fixed-header` + `.tab-scroll` structure, no calendar-specific toolbar overrides. */
+.calendar-grid-head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.calendar-dow {
+  text-align: center;
+  font-size: 11px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(74px, auto);
+  gap: 4px;
+}
+/* Flex column: day-number pinned top, `.calendar-cell-body` centers the mini-timeline vertically. */
+.calendar-cell {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.calendar-cell.out {
+  opacity: 0.4;
+}
+.calendar-cell.today {
+  border-color: var(--accent);
+}
+.calendar-cell:hover {
+  background: var(--bg-hover, var(--bg-elev));
+  border-color: var(--accent);
+}
+.calendar-cell-num {
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-size: 12px;
+}
+/* Spacer filling the remaining cell height to center the mini-timeline; inner margin reset so it's not biased down. */
+.calendar-cell-body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: stretch;
+  min-height: 0;
+}
+.calendar-cell-body .mini-timeline {
+  flex: 1 1 auto;
+  margin: 0;
+}
+.mini-timeline {
+  position: relative;
+  /* Fallback height; both call sites (calendar cell, day popup) pass an inline `height`. */
+  height: 16px;
+  margin: 18px 0 6px;
+  background: var(--bg);
+  /* `overflow: hidden` clips inner mini-blocks against the rounded container. */
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+/* Weekday-template fallback cells dim their mini-timeline to distinguish "real schedule" from "just the template". */
+.mini-timeline.mini-timeline--template {
+  opacity: 0.45;
+}
+.mini-block {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  /* `--mini-color` set inline per item (fallback `--accent`) for a recognisable fill. */
+  background: var(--mini-color, var(--accent));
+  border-right: 1px solid var(--bg);
+}
+
+/* Day popup: two full-width "button cards" navigating to Schedule; taller than a button so the MiniTimeline fits. */
+.day-popup-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day-popup-cards .day-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 12px 10px;
+  gap: 6px;
+}
+
+.day-popup-cards .day-card-label {
+  font-size: 11px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.day-popup-cards .day-card-body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: stretch;
+  min-height: 0;
+}
+
+/* MiniTimeline fills the card body; height is set inline, so only flex/margin are overridden here. */
+.day-popup-cards .day-card-body .mini-timeline {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.day-popup-cards .day-card-empty {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+/* Saved tick overlaid inside the input (not in flow) so its fade doesn't shift content; `.autofield` anchors it. */
+.autofield {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.saved-tick {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ok);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.saved-tick.show {
+  opacity: 1;
+}
+/* For textareas, pin the tick to the top-right corner where the eye is, not the empty vertical center. */
+.autofield textarea + .saved-tick {
+  top: 8px;
+  transform: none;
+}
+
+/* Create mode mutates only the in-memory draft, so suppress the "saved" tick — nothing's persisted yet. */
+.item-edit-body.is-placeholder .saved-tick {
+  display: none;
+}
+
+/* Soft-red wash on an input whose last blur failed validation; focus outline left alone so correcting feels normal. */
+.autofield.invalid input,
+.autofield.invalid textarea {
+  background: color-mix(in srgb, var(--danger) 18%, var(--bg-elev));
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+/* Color picker (shared): circular swatches; the check renders on every swatch (hidden when unselected) to avoid reflow. */
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.color-swatch {
+  /* Override the generic button rhythm: pure color chips with a fixed circular footprint. */
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent);
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  /* `background` is set inline; transitions cover only the hover/selected ring changes. */
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.color-swatch:hover:not(:disabled) {
+  /* Override the generic button hover (which would erase the chip's color); use a subtle lift + brighter border. */
+  background: inherit;
+  transform: scale(1.05);
+  border-color: color-mix(in srgb, var(--fg) 40%, transparent);
+}
+
+.color-swatch.selected {
+  /* Two-tone ring (bg-elev gap + accent halo) so the selected swatch reads as "chosen" beside similar hues. */
+  box-shadow:
+    0 0 0 2px var(--bg-elev),
+    0 0 0 4px var(--accent);
+  border-color: transparent;
+}
+
+.color-swatch .color-swatch-check {
+  /* Centered check: a darkened glyph + thin white text-shadow reads on every mid-luminance swatch color. */
+  font-size: 14px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.72);
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+.color-swatch.selected .color-swatch-check {
+  opacity: 1;
+}
+
+/* Pip picker for project value/time_cost: ~14px circles, filled = palette color; `.readonly` drops the hover affordance. */
+.pip-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pip {
+  /* Override the button rhythm like `.color-swatch`: fixed circular footprint, no padding/background/border. */
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--fg) 28%, transparent);
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: transform 0.1s ease, background-color 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.pip-picker:not(.readonly) .pip:hover:not(:disabled) {
+  /* Suppress the generic button hover (would swallow filled pips); inline `background` keeps their palette color. */
+  background: inherit;
+  transform: scale(1.1);
+}
+
+.pip-picker.readonly .pip {
+  /* Read-only pips inherit the row's pointer and stay full-opacity — they're status glyphs, not disabled controls. */
+  cursor: inherit;
+  opacity: 1;
+}
+
