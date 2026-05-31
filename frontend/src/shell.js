@@ -65,7 +65,9 @@ function tab(href, label, active, onActivate) {
   return m(
     "a.tab",
     {
-      href,
+      // Include the route prefix so opening in a new tab / modified-click lands on
+      // the deployment URL (e.g. /schedule/today); left-click routes via m.route.
+      href: (m.route.prefix || "") + href,
       class: active ? "active" : "",
       onclick: (e) => {
         if (

@@ -8,7 +8,9 @@ import { ProjectsList, ProjectDetail } from "./views/projects.js";
 
 const mount = document.getElementById("app");
 
-m.route.prefix = "";
+// Pathname routing under the deployment base ("" at root, "/schedule" behind the
+// proxy) so route URLs like /schedule/today resolve to the same SPA root.
+m.route.prefix = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 // Startup smoke check to surface a down server during development.
 api.health().catch(() => {});

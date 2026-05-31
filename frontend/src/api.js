@@ -1,5 +1,10 @@
 import m from "mithril";
 
+// Deployment base without the trailing slash ("" at root, "/schedule" under the
+// reverse proxy). Prepended to absolute request URLs and the login-path guard so
+// the app works whether it's served at the domain root or a subpath.
+const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
+
 const mutationListeners = new Set();
 export function onApiMutation(fn) {
   mutationListeners.add(fn);
@@ -13,9 +18,11 @@ async function request(method, url, body) {
     credentials: "same-origin",
   };
   if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
+  // Notifications below still see the base-relative `url`, so the `/api/...`
+  // heuristics in history/views keep matching; only the fetch target is rebased.
+  const res = await fetch(BASE + url, opts);
   if (res.status === 401) {
-    if (!location.pathname.startsWith("/login")) {
+    if (!location.pathname.startsWith(BASE + "/login")) {
       m.route.set("/login");
     }
     throw new AuthError();
