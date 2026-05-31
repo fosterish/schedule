@@ -1008,6 +1008,17 @@ function addItemButton({ onclick, disabled }) {
   );
 }
 
+// Compact span like "1h 50m" / "1h" / "50m" for the inline range display; floors at "0m".
+function fmtRange(min) {
+  const total = Math.max(0, Math.round(min));
+  const h = Math.floor(total / 60);
+  const mm = total % 60;
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (mm > 0 || h === 0) parts.push(`${mm}m`);
+  return parts.join(" ");
+}
+
 function renderTimeline(vnode, self, opts) {
   // Drag previews override the rendered items/schedule; edge drags can auto-expand the schedule, so use the preview's schedule when present.
   const previewState = vnode.state.dragPreview;
@@ -1047,7 +1058,9 @@ function renderTimeline(vnode, self, opts) {
         desc ? m(".block-inline-desc", inlineDesc) : null,
         m(
           ".block-times",
-          `${fmtClock(it.assigned_start)} \u2013 ${fmtClock(it.assigned_end)}`
+          `${fmtClock(it.assigned_start)} \u2013 ${fmtClock(it.assigned_end)} (${fmtRange(
+            it.assigned_end - it.assigned_start
+          )})`
         ),
       ]),
       desc ? m(".block-desc", desc) : null,
