@@ -1630,8 +1630,9 @@ button .label + .icon {
 /* Movable time cursor / now line. Z-index above drag ghost (10), below popup overlay (100); parent is click-through. */
 .time-cursor {
   position: absolute;
+  /* Span both gutters so the line and its end-pinned controls reach the timeline viewport edges. */
   left: -68px;
-  right: 0;
+  right: -60px;
   z-index: 20;
   pointer-events: none;
 }

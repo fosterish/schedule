@@ -1827,16 +1827,35 @@ async function onDragEnd(vnode, self, event) {
   else reset();
 }
 
+// Hold the content point under the initial pinch focus fixed on screen by re-deriving scrollTop for the given zoom.
+function applyPinchAnchor(vnode, pinch, zoom) {
+  const scroller = vnode.state._scrollEl;
+  if (!scroller || pinch.anchorPx == null) return;
+  const target =
+    pinch.offsetPx + (pinch.anchorPx * zoom) / pinch.startZoom - pinch.focalViewportY;
+  scroller.scrollTop = Math.max(0, target);
+}
+
 // Pinch tracks finger distance (clamped to the fit floor and a soft max); release snaps to the nearest availableSteps entry.
 function handlePinchStart(vnode, e) {
   // Claim the two-finger gesture so the browser neither scrolls nor zooms the page mid-pinch.
   e.preventDefault();
+  // Pinch wins over a drag started by the first finger landing on a block; revert it so no reorder slips through.
+  if (vnode.state.dragSession) cancelDrag(vnode);
   const [a, b] = e.touches;
   const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-  vnode.state.pinch = {
-    startDist: dist,
-    startZoom: vnode.state.zoom,
-  };
+  const pinch = { startDist: dist, startZoom: vnode.state.zoom };
+  // Anchor the zoom on the focal point (finger midpoint): record its content offset so it stays put as the timeline scales.
+  const scroller = vnode.state._scrollEl;
+  const timelineEl = scroller && scroller.querySelector(".timeline");
+  if (timelineEl) {
+    const scrollerTop = scroller.getBoundingClientRect().top;
+    pinch.offsetPx =
+      timelineEl.getBoundingClientRect().top - scrollerTop + scroller.scrollTop;
+    pinch.focalViewportY = (a.clientY + b.clientY) / 2 - scrollerTop;
+    pinch.anchorPx = pinch.focalViewportY + scroller.scrollTop - pinch.offsetPx;
+  }
+  vnode.state.pinch = pinch;
 }
 
 function handlePinchMove(vnode, e) {
@@ -1854,11 +1873,14 @@ function handlePinchMove(vnode, e) {
   live = Math.min(max, live);
   if (Math.abs(live - vnode.state.zoom) > 1e-6) {
     vnode.state.zoom = live;
-    m.redraw();
+    // Sync redraw so the timeline reaches its new height before we re-anchor scrollTop to the focal point.
+    m.redraw.sync();
+    applyPinchAnchor(vnode, pinch, live);
   }
 }
 
 function handlePinchEnd(vnode) {
+  const pinch = vnode.state.pinch;
   const steps = availableSteps(vnode);
   const z = vnode.state.zoom;
   let best = steps[0];
@@ -1875,7 +1897,13 @@ function handlePinchEnd(vnode) {
   vnode.state.zoom = best;
   saveZoom(best);
   vnode.state.pinch = null;
-  m.redraw();
+  // Keep the focal point fixed across the snap-to-step adjustment, too.
+  if (pinch) {
+    m.redraw.sync();
+    applyPinchAnchor(vnode, pinch, best);
+  } else {
+    m.redraw();
+  }
 }
 
 function blockStyle(it, scheduleStart, pxPerMin, raw) {
