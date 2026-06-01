@@ -7,10 +7,13 @@ use axum_extra::extract::cookie::Key;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
-use schedule::{db, routes, AppState};
+use schedule::{db, load_env, routes, AppState};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Before tracing init so RUST_LOG from .env reaches the EnvFilter.
+    let env_path = load_env();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -18,13 +21,17 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
+    if let Some(path) = &env_path {
+        tracing::info!("loaded environment from {}", path.display());
+    }
+
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite://schedule.db?mode=rwc".to_string());
     let pool = db::connect(&database_url).await?;
     db::migrate(&pool).await?;
 
     let cookie_key = load_or_generate_cookie_key()?;
-    let frontend_dir = std::env::var("FRONTEND_DIR").unwrap_or_else(|_| "../frontend".to_string());
+    let frontend_dir = std::env::var("FRONTEND_DIR").unwrap_or_else(|_| "frontend".to_string());
     let frontend_dir = PathBuf::from(frontend_dir);
 
     if !frontend_dir.exists() {

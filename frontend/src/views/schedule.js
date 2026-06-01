@@ -1215,22 +1215,16 @@ function renderTimeline(vnode, self, opts) {
         });
       },
     });
-  const startBound = m(
-    ".schedule-bound.start",
-    {
-      style: `top:${(sched.start_min - effectiveStart) * pxPerMin}px`,
-    },
-    m("span.label", "start"),
-    boundHandle("start")
-  );
-  const endBound = m(
-    ".schedule-bound.end",
-    {
-      style: `top:${(sched.end_min - effectiveStart) * pxPerMin}px`,
-    },
-    m("span.label", "end"),
-    boundHandle("end")
-  );
+  // Handle region spans one item's width (grip centers on the item axis); label region fills the gutter to the viewport edge.
+  const bound = (edge, label, topMin) =>
+    m(
+      `.schedule-bound.${edge}`,
+      { style: `top:${(topMin - effectiveStart) * pxPerMin}px` },
+      m(".bound-handle-region", boundHandle(edge)),
+      m(".bound-label-region", m("span.label", label))
+    );
+  const startBound = bound("start", "start", sched.start_min);
+  const endBound = bound("end", "end", sched.end_min);
 
   return m(
     ".timeline-wrap",

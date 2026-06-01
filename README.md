@@ -72,11 +72,15 @@ cd frontend && npm test    # JS ports (layout, ordering, parsing, ...)
 
 ### Environment variables
 
+Both binaries load a `.env` file from the working directory (or any parent) on
+startup; real environment variables take precedence. Paths default to running
+from the repo root (e.g. `cargo run --bin schedule`).
+
 | Variable       | Default                           | Notes                                                  |
 | -------------- | --------------------------------- | ------------------------------------------------------ |
 | `DATABASE_URL` | `sqlite://schedule.db?mode=rwc`   | SQLx connection string. Migrations run on startup.     |
 | `APP_SECRET`   | random (ephemeral if unset)       | 64+ hex chars; signs session cookies. Set in prod.     |
-| `FRONTEND_DIR` | `../frontend`                     | Directory served at `/` (use `frontend/dist` in prod). |
+| `FRONTEND_DIR` | `frontend`                        | Directory served at `/` (use `frontend/dist` in prod). |
 | `BIND_ADDR`    | `127.0.0.1:3000`                  | Listen address.                                        |
 | `RUST_LOG`     | `schedule=debug,tower_http=info`  | Tracing filter.                                        |
 

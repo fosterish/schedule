@@ -1255,6 +1255,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "cookie",
+ "dotenvy",
  "hex",
  "rand 0.8.6",
  "rpassword",

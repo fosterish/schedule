@@ -1,10 +1,12 @@
 use std::io::Write;
 
 use schedule::auth::hash_password;
-use schedule::db;
+use schedule::{db, load_env};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    load_env();
+
     let mut args = std::env::args().skip(1);
     let mut reset = false;
     let mut username: Option<String> = None;

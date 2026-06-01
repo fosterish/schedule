@@ -1257,10 +1257,17 @@ button .label + .icon {
 .timeline {
   position: relative;
   border-left: 2px solid var(--border);
-  /* Symmetric gutters: the left holds hour labels, the right gives a touch-scroll strip clear of blocks (and holds media badges). */
-  margin-left: 60px;
-  margin-right: 60px;
   min-height: 200px;
+  /* Gutter on each side: hour labels left; touch-scroll strip + media badges right. Lines span both gutters; items stop short. */
+  --gutter: 60px;
+  /* Item horizontal extents; shared by .timeline-block and the bound handle region so the grip tracks the item edges. The right edge overhangs into the gutter (media badges are placed to clear it). */
+  --item-left: 4px;
+  --item-right: -12px;
+  /* Item border widths; the handle region mirrors them transparently so its center matches the item's (inset by the borders). */
+  --item-border: 1px;
+  --item-border-left: 4px;
+  margin-left: var(--gutter);
+  margin-right: var(--gutter);
 }
 
 /* `.zooming` (toggled ~250ms by changeZoom) animates pxPerMin-derived sizes; linear timing keeps the centered minute pinned. */
@@ -1275,20 +1282,35 @@ button .label + .icon {
   transition: top 0.25s linear, height 0.25s linear;
 }
 
-/* Schedule start/end marker lines: above the hour grid, below items; line runs to the viewport edge, label stays in the item column. */
+/* Schedule start/end marker lines: above the hour grid, below items. The flex row draws the line (border-top) and tiles into an item-width handle region and a gutter-width label region. */
 .schedule-bound {
   position: absolute;
   left: 0;
-  right: -60px;
+  right: calc(-1 * var(--gutter));
+  display: flex;
   border-top: 1px solid var(--border-strong);
   pointer-events: none;
   z-index: 1;
 }
 
+/* Matches a schedule item's footprint (left inset + overhang past the timeline edge) so the centered handle shares the item grip axis. Transparent borders mirror the item's so both center on the same (border-inset) padding box. */
+.bound-handle-region {
+  position: relative;
+  margin-left: var(--item-left);
+  flex: 1 1 auto;
+  border-left: var(--item-border-left) solid transparent;
+  border-right: var(--item-border) solid transparent;
+}
+
+/* Fills the rest: the gutter strip right of the item edge, holding the right-aligned label. */
+.bound-label-region {
+  position: relative;
+  flex: 0 0 calc(var(--gutter) + var(--item-right));
+}
+
 .schedule-bound .label {
   position: absolute;
-  /* Aligns the label to the timeline edge, not the line's far (viewport) end. */
-  right: 64px;
+  right: 4px;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--fg-muted);
@@ -1308,8 +1330,7 @@ button .label + .icon {
 /* Drag handles straddling the bound lines (above start, below end); grip dots mirror the item fixed-edge handles. */
 .schedule-bound .bound-handle {
   position: absolute;
-  /* Offset half the gutter to keep the grip centered over the item column. */
-  left: calc(50% - 30px);
+  left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -1350,8 +1371,8 @@ button .label + .icon {
 .hour-line {
   position: absolute;
   /* Span both gutters so the grid reads as one continuous timeline across the full viewport. */
-  left: -60px;
-  right: -60px;
+  left: calc(-1 * var(--gutter));
+  right: calc(-1 * var(--gutter));
   border-top: 1px dashed var(--border);
 }
 
@@ -1367,15 +1388,13 @@ button .label + .icon {
   padding-right: 6px;
 }
 
-/* Media badges pinned to the right gutter at the target item's midpoint; translateX(100%) grows right, translateY(-50%) centers. */
+/* Media badges at the target item's midpoint, centered in the gutter between the item's right edge and the viewport margin. */
 .media-badges {
   position: absolute;
-  /* Clears the item's right edge, which overhangs into the gutter. */
-  right: -20px;
-  transform: translate(100%, -50%);
+  right: -36px;
+  transform: translate(50%, -50%);
   display: flex;
   gap: 3px;
-  padding-left: 8px;
   z-index: 3;
 }
 
@@ -1415,16 +1434,15 @@ button .label + .icon {
 
 .timeline-block {
   position: absolute;
-  left: 4px;
-  /* Right edge overhangs into the gutter; media badges are placed to clear it. */
-  right: -12px;
+  left: var(--item-left);
+  right: var(--item-right);
   /* `--block-color` set inline per item (fallback `--accent`); fixed/dynamic styling below blends it with `--bg-elev`. */
   --block-color: var(--accent);
   --block-bg-dynamic: color-mix(in srgb, var(--block-color) 2%, var(--bg-elev));
   --fixed-tint: color-mix(in srgb, var(--block-color) 32%, var(--bg-elev));
   background: var(--block-bg-dynamic);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--block-color);
+  border: var(--item-border) solid var(--border);
+  border-left: var(--item-border-left) solid var(--block-color);
   border-radius: var(--radius);
   padding: 4px 8px;
   overflow: hidden;
@@ -1636,7 +1654,7 @@ button .label + .icon {
   position: absolute;
   /* Span both gutters so the line and its end-pinned controls reach the timeline viewport edges. */
   left: -68px;
-  right: -60px;
+  right: calc(-1 * var(--gutter));
   z-index: 20;
   pointer-events: none;
 }
