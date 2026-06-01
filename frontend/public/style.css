@@ -1275,11 +1275,11 @@ button .label + .icon {
   transition: top 0.25s linear, height 0.25s linear;
 }
 
-/* Schedule start/end marker lines: above the hour grid but below items; labels sit just outside, right-aligned. */
+/* Schedule start/end marker lines: above the hour grid, below items; line runs to the viewport edge, label stays in the item column. */
 .schedule-bound {
   position: absolute;
   left: 0;
-  right: 0;
+  right: -60px;
   border-top: 1px solid var(--border-strong);
   pointer-events: none;
   z-index: 1;
@@ -1287,7 +1287,8 @@ button .label + .icon {
 
 .schedule-bound .label {
   position: absolute;
-  right: 4px;
+  /* Aligns the label to the timeline edge, not the line's far (viewport) end. */
+  right: 64px;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--fg-muted);
@@ -1307,7 +1308,8 @@ button .label + .icon {
 /* Drag handles straddling the bound lines (above start, below end); grip dots mirror the item fixed-edge handles. */
 .schedule-bound .bound-handle {
   position: absolute;
-  left: 50%;
+  /* Offset half the gutter to keep the grip centered over the item column. */
+  left: calc(50% - 30px);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -1368,7 +1370,8 @@ button .label + .icon {
 /* Media badges pinned to the right gutter at the target item's midpoint; translateX(100%) grows right, translateY(-50%) centers. */
 .media-badges {
   position: absolute;
-  right: 0;
+  /* Clears the item's right edge, which overhangs into the gutter. */
+  right: -20px;
   transform: translate(100%, -50%);
   display: flex;
   gap: 3px;
@@ -1413,7 +1416,8 @@ button .label + .icon {
 .timeline-block {
   position: absolute;
   left: 4px;
-  right: 8px;
+  /* Right edge overhangs into the gutter; media badges are placed to clear it. */
+  right: -12px;
   /* `--block-color` set inline per item (fallback `--accent`); fixed/dynamic styling below blends it with `--bg-elev`. */
   --block-color: var(--accent);
   --block-bg-dynamic: color-mix(in srgb, var(--block-color) 2%, var(--bg-elev));

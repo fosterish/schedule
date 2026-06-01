@@ -1897,7 +1897,7 @@ function handlePinchEnd(vnode) {
   vnode.state.zoom = best;
   saveZoom(best);
   vnode.state.pinch = null;
-  // Keep the focal point fixed across the snap-to-step adjustment, too.
+  // Keep the focal point fixed across the snap-to-step adjustment.
   if (pinch) {
     m.redraw.sync();
     applyPinchAnchor(vnode, pinch, best);
