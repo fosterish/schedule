@@ -235,12 +235,12 @@ function projectRow(p, vnode, self) {
       ".project-row-trailer",
       m(
         ".project-row-meta",
-        // Projects with no subtasks suppress the count column; rendering "0 / 0" would just be visual noise.
+        // Projects with no tasks suppress the count column; rendering "0 / 0" would just be visual noise.
         total > 0
           ? m(
               "span.project-stat.tasks",
-              { title: "Completed / total subtasks" },
-              m("span.project-stat-label", "Subtasks:"),
+              { title: "Completed / total tasks" },
+              m("span.project-stat-label", "Tasks:"),
               m("span.project-stat-value", `${completed} / ${total}`)
             )
           : null,
@@ -411,7 +411,7 @@ const ProjectPopup = {
           }),
         ]),
         m(".field", [
-          m(".field-label", "Time cost"),
+          m(".field-label", "Time"),
           m(PipPicker, {
             value: p.time_cost,
             count: 5,
@@ -454,15 +454,15 @@ const ProjectPopup = {
               {
                 disabled: !vnode.attrs.completedCount,
                 title: vnode.attrs.completedCount
-                  ? "Permanently delete all completed subtasks"
-                  : "No completed subtasks to delete",
+                  ? "Permanently delete all completed tasks"
+                  : "No completed tasks to delete",
                 onclick: () =>
                   vnode.attrs.onDeleteCompleted &&
                   vnode.attrs.onDeleteCompleted(),
               },
               vnode.attrs.completedCount
-                ? `Delete all completed subtasks (${vnode.attrs.completedCount})`
-                : "Delete all completed subtasks"
+                ? `Delete all completed tasks (${vnode.attrs.completedCount})`
+                : "Delete all completed tasks"
             ),
           ])
         : null
@@ -583,7 +583,7 @@ export const ProjectDetail = {
               },
             },
             m("span.icon.icon-plus"),
-            m("span.label", "Add subtask")
+            m("span.label", "Add task")
           ),
           m(
             "button.icon-btn",
@@ -727,7 +727,8 @@ function taskRow(t, vnode, self, opts) {
           vnode.state._suppressTaskClick = false;
           return;
         }
-        if (e.target.closest("input,button,a,select,textarea")) return;
+        if (e.target.closest("input,button,a,select,textarea,.task-drag-handle"))
+          return;
         vnode.state.editingTask = { mode: "edit", task: t };
       },
     },
@@ -748,9 +749,20 @@ function taskRow(t, vnode, self, opts) {
       },
     }),
     m("span.name", t.name),
-    // Spacer pushes the blocked-by badge to the right edge; the row opens via a body tap.
+    // Spacer pushes the badge + handle to the right edge; the row opens via a body tap.
     m(".spacer-h"),
-    blockedBy ? m("span.muted.blocked-by", `blocked by ${blockedBy}`) : null
+    blockedBy ? m("span.muted.blocked-by", `blocked by ${blockedBy}`) : null,
+    // Completed tasks can't be reordered, so they get no handle.
+    t.completed_at ? null : dragHandle()
+  );
+}
+
+// Grab handle: the only reorder affordance on touch; a mouse can also drag the row body.
+function dragHandle() {
+  return m(
+    "span.task-drag-handle",
+    { "aria-label": "Drag to reorder", title: "Drag to reorder" },
+    m("span.icon.icon-drag-handle")
   );
 }
 
@@ -762,7 +774,7 @@ function taskPlaceholder(dd) {
   });
 }
 
-// Translucent floating copy of the dragged subtask, fixed-positioned outside the keyed list so reordering rows never disturbs it.
+// Translucent floating copy of the dragged task, fixed-positioned outside the keyed list so reordering rows never disturbs it.
 function taskGhost(t, dd, blockedBy) {
   // No key: the ghost is a sibling of the unkeyed `.list-section`, and Mithril forbids mixing keyed/unkeyed siblings.
   return m(
@@ -776,14 +788,13 @@ function taskGhost(t, dd, blockedBy) {
     m("input", { type: "checkbox", checked: !!t.completed_at, disabled: true }),
     m("span.name", t.name),
     m(".spacer-h"),
-    blockedBy ? m("span.muted.blocked-by", `blocked by ${blockedBy}`) : null
+    blockedBy ? m("span.muted.blocked-by", `blocked by ${blockedBy}`) : null,
+    dragHandle()
   );
 }
 
-// Drag arms on 5px (mouse) or a ~200ms hold (touch); scrolling is blocked via non-passive `touchmove` preventDefault, not `touch-action`.
+// Drag arms once the pointer moves 5px past the press point, for both mouse and the touch handle.
 const DRAG_THRESHOLD_PX = 5;
-const TOUCH_HOLD_MS = 200;
-const TOUCH_MOVE_TOL_PX = 14;
 
 // Pointerdown starts a gesture, not yet a drag; listeners resolve it into a tap or drag, skipping interactive controls.
 function onRowPointerDown(vnode, self, t, e) {
@@ -791,10 +802,12 @@ function onRowPointerDown(vnode, self, t, e) {
   if (e.target.closest("input,button,a,select,textarea")) return;
   // Completed tasks aren't reorderable: no drag arms, but a tap still opens the popup.
   if (t.completed_at) return;
+  // Touch reorders only via the handle; a body touch stays free to scroll or tap.
+  if (e.pointerType === "touch" && !e.target.closest(".task-drag-handle")) return;
   const rowEl = e.currentTarget;
   const listEl = rowEl.closest(".list-section");
   if (!listEl) return;
-  // Suppress text-selection on mouse; on touch we must not preventDefault here or quick swipes won't scroll.
+  // Suppress text-selection on mouse; a touch on the handle can't scroll (touch-action: none), so nothing to guard.
   if (e.pointerType !== "touch") e.preventDefault();
 
   const g = {
@@ -805,7 +818,6 @@ function onRowPointerDown(vnode, self, t, e) {
     startY: e.clientY,
     listEl,
     armed: false,
-    holdTimer: null,
   };
   const move = (ev) => onGestureMove(vnode, ev);
   const up = () => onGestureUp(vnode);
@@ -821,7 +833,7 @@ function onRowPointerDown(vnode, self, t, e) {
   document.addEventListener("keydown", key);
 
   if (e.pointerType === "touch") {
-    // Non-passive touchmove: once armed, preventDefault here cancels page scroll (pointermove doesn't); before arming, leave it for swipes.
+    // Non-passive touchmove: once armed, preventDefault cancels any residual scroll during the drag.
     const touchMove = (ev) => {
       if (vnode.state.taskGesture === g && g.armed && ev.cancelable) {
         ev.preventDefault();
@@ -829,9 +841,6 @@ function onRowPointerDown(vnode, self, t, e) {
     };
     g._touchMove = touchMove;
     document.addEventListener("touchmove", touchMove, { passive: false });
-    g.holdTimer = setTimeout(() => {
-      if (vnode.state.taskGesture === g && !g.armed) armTaskDrag(vnode, g);
-    }, TOUCH_HOLD_MS);
   }
   vnode.state.taskGesture = g;
 }
@@ -841,11 +850,6 @@ function onGestureMove(vnode, e) {
   if (!g) return;
   if (!g.armed) {
     const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
-    if (g.pointerType === "touch") {
-      // Movement before the hold fires → a scroll: bow out and let the browser pan the list.
-      if (dist > TOUCH_MOVE_TOL_PX) abortTaskGesture(vnode);
-      return;
-    }
     if (dist < DRAG_THRESHOLD_PX) return;
     armTaskDrag(vnode, g);
   }
@@ -856,10 +860,6 @@ function onGestureMove(vnode, e) {
 
 // Promote the gesture into a drag, snapshotting row geometry once so mid-drag DOM reordering can't feed back into the math.
 function armTaskDrag(vnode, g) {
-  if (g.holdTimer) {
-    clearTimeout(g.holdTimer);
-    g.holdTimer = null;
-  }
   const rowEls = [...g.listEl.querySelectorAll(".list-row")];
   // DOM rows render in display order, so pair snapshot rects with that order, not the server order.
   const display = displayTasks(vnode.state.tasks);
@@ -870,7 +870,8 @@ function armTaskDrag(vnode, g) {
   });
   const originalIndex = ids.indexOf(g.task.id);
   if (originalIndex < 0) {
-    abortTaskGesture(vnode);
+    teardownTaskGesture(g);
+    vnode.state.taskGesture = null;
     return;
   }
   const listRect = g.listEl.getBoundingClientRect();
@@ -879,7 +880,7 @@ function armTaskDrag(vnode, g) {
   g.armed = true;
   // A mouse drag emits a trailing click, so arm the guard; touch drags emit none.
   if (g.pointerType !== "touch") vnode.state._suppressTaskClick = true;
-  // Short haptic tick on touch to confirm the hold registered, where recognition is otherwise invisible.
+  // Short haptic tick on touch to confirm the handle drag engaged.
   if (g.pointerType === "touch" && navigator.vibrate) navigator.vibrate(15);
   vnode.state.taskDrag = {
     draggedId: g.task.id,
@@ -975,17 +976,9 @@ function onGestureUp(vnode) {
     .reorderTask(dd.draggedId, dd.afterId)
     .then(() => self.reload(vnode))
     .catch((err) => {
-      console.error("Reorder subtask failed:", err);
+      console.error("Reorder task failed:", err);
       self.reload(vnode);
     });
-}
-
-// Abandon a gesture that was a scroll/tap; no drag state exists, so nothing to snap back.
-function abortTaskGesture(vnode) {
-  const g = vnode.state.taskGesture;
-  if (!g) return;
-  teardownTaskGesture(g);
-  vnode.state.taskGesture = null;
 }
 
 function cancelTaskDrag(vnode) {
@@ -999,7 +992,6 @@ function cancelTaskDrag(vnode) {
 
 function teardownTaskGesture(g) {
   if (!g) return;
-  if (g.holdTimer) clearTimeout(g.holdTimer);
   document.removeEventListener("pointermove", g._move);
   document.removeEventListener("pointerup", g._up);
   document.removeEventListener("pointercancel", g._up);
@@ -1129,9 +1121,9 @@ const TaskEditPopup = {
     return m(
       Popup,
       {
-        title: isCreate ? "New subtask" : "Subtask",
+        title: isCreate ? "New task" : "Task",
         onclose: vnode.attrs.onclose,
-        deleteLabel: isCreate ? undefined : "Delete subtask",
+        deleteLabel: isCreate ? undefined : "Delete task",
         onDelete: isCreate
           ? undefined
           : () => vnode.attrs.ondelete && vnode.attrs.ondelete(),
@@ -1147,11 +1139,11 @@ const TaskEditPopup = {
                   hasCycle([...existingEdges, ...ownStagedEdges()]),
                 title:
                   t.name.trim() === ""
-                    ? "Enter a name to add the subtask"
-                    : "Add this subtask",
+                    ? "Enter a name to add the task"
+                    : "Add this task",
               },
               m("span.icon.icon-plus"),
-              m("span.label", "Add subtask")
+              m("span.label", "Add task")
             )
           : null,
       },
@@ -1178,7 +1170,7 @@ const TaskEditPopup = {
             ? m("input", {
                 type: "text",
                 value: t.name,
-                placeholder: "Subtask name",
+                placeholder: "Task name",
                 oninput: (e) => {
                   t.name = e.target.value;
                 },
@@ -1258,7 +1250,7 @@ const TaskEditPopup = {
           m(".dep-search", [
             m("input", {
               type: "text",
-              placeholder: "Search subtasks\u2026",
+              placeholder: "Search tasks\u2026",
               value: query,
               onfocus: () => {
                 vnode.state.openSearch = key;

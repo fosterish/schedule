@@ -657,7 +657,7 @@ button:has(> .label + .icon) {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  /* Rows are clickable → pointer cursor; subtask rows override to `cursor: grab` since they drag from the body. */
+  /* Rows are clickable → pointer cursor; task rows override to `cursor: grab` since they drag from the body. */
   cursor: pointer;
 }
 
@@ -665,7 +665,7 @@ button:has(> .label + .icon) {
   border-color: var(--border-strong);
 }
 
-/* Shared colored identity for project + subtask rows: 4px left accent + dim same-color tint from inline `--block-color`. */
+/* Shared colored identity for project + task rows: 4px left accent + dim same-color tint from inline `--block-color`. */
 .list-row.project-row,
 .list-row.task-row {
   --block-color: var(--accent);
@@ -692,7 +692,7 @@ button:has(> .label + .icon) {
   border-left-color: var(--block-color);
 }
 
-/* Subtask rows drag from their body: advertise grab; suppress text selection and iOS long-press callout. */
+/* Task rows: a mouse drags from the body (grab cursor); suppress text selection and the iOS long-press callout. */
 .list-row.task-row {
   cursor: grab;
   user-select: none;
@@ -703,6 +703,24 @@ button:has(> .label + .icon) {
 /* Completed rows aren't reorderable, so drop the grab affordance (tap still opens the popup). */
 .list-row.task-row.completed {
   cursor: pointer;
+}
+
+/* Grab handle: the only reorder affordance on touch (a mouse can also drag the row body). */
+.list-row.task-row .task-drag-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  padding: 4px;
+  color: var(--fg-muted);
+  cursor: grab;
+  /* A touch starting on the handle never scrolls, so a one-finger drag reorders instead of panning the list. */
+  touch-action: none;
+}
+
+.list-row.task-row .task-drag-handle:hover {
+  color: var(--fg);
 }
 
 /* Right-aligned "blocked by N" badge; never shrink or wrap so it stays legible. */
@@ -738,7 +756,7 @@ button:has(> .label + .icon) {
   touch-action: none;
 }
 
-/* Dashed slot held open at the drop position during a subtask drag —
+/* Dashed slot held open at the drop position during a task drag —
  * matches the schedule's `.timeline-block.placeholder`. */
 .list-row.placeholder {
   border-style: dashed;
@@ -810,7 +828,7 @@ button:has(> .label + .icon) {
   background: var(--bg-elev-2);
 }
 
-/* Right-aligned stat columns (Subtasks/Value/Time); each is a labeled column. `.project-detail-stats` reuses this chrome. */
+/* Right-aligned stat columns (Tasks/Value/Time); each is a labeled column. `.project-detail-stats` reuses this chrome. */
 .list-row .project-stat,
 .project-detail-stats .project-stat {
   display: inline-flex;
@@ -1057,73 +1075,77 @@ button:has(> .label + .icon) {
 }
 
 .icon-anchor {
-  -webkit-mask-image: url("icons/anchor.svg");
-          mask-image: url("icons/anchor.svg");
+  -webkit-mask-image: url("./icons/anchor.svg");
+          mask-image: url("./icons/anchor.svg");
 }
 /* Per-edge anchor glyphs: `icon-anchor-left` pins the Start edge, `icon-anchor-right` the End edge. */
 .icon-anchor-left {
-  -webkit-mask-image: url("icons/anchor-left.svg");
-          mask-image: url("icons/anchor-left.svg");
+  -webkit-mask-image: url("./icons/anchor-left.svg");
+          mask-image: url("./icons/anchor-left.svg");
 }
 .icon-anchor-right {
-  -webkit-mask-image: url("icons/anchor-right.svg");
-          mask-image: url("icons/anchor-right.svg");
+  -webkit-mask-image: url("./icons/anchor-right.svg");
+          mask-image: url("./icons/anchor-right.svg");
 }
 .icon-caret-up {
-  -webkit-mask-image: url("icons/caret-up.svg");
-          mask-image: url("icons/caret-up.svg");
+  -webkit-mask-image: url("./icons/caret-up.svg");
+          mask-image: url("./icons/caret-up.svg");
 }
 .icon-caret-down {
-  -webkit-mask-image: url("icons/caret-down.svg");
-          mask-image: url("icons/caret-down.svg");
+  -webkit-mask-image: url("./icons/caret-down.svg");
+          mask-image: url("./icons/caret-down.svg");
 }
 .icon-chevron-left {
-  -webkit-mask-image: url("icons/chevron-left.svg");
-          mask-image: url("icons/chevron-left.svg");
+  -webkit-mask-image: url("./icons/chevron-left.svg");
+          mask-image: url("./icons/chevron-left.svg");
 }
 .icon-chevron-right {
-  -webkit-mask-image: url("icons/chevron-right.svg");
-          mask-image: url("icons/chevron-right.svg");
+  -webkit-mask-image: url("./icons/chevron-right.svg");
+          mask-image: url("./icons/chevron-right.svg");
 }
 .icon-undo {
-  -webkit-mask-image: url("icons/undo.svg");
-          mask-image: url("icons/undo.svg");
+  -webkit-mask-image: url("./icons/undo.svg");
+          mask-image: url("./icons/undo.svg");
 }
 .icon-redo {
-  -webkit-mask-image: url("icons/redo.svg");
-          mask-image: url("icons/redo.svg");
+  -webkit-mask-image: url("./icons/redo.svg");
+          mask-image: url("./icons/redo.svg");
 }
 .icon-play {
-  -webkit-mask-image: url("icons/play.svg");
-          mask-image: url("icons/play.svg");
+  -webkit-mask-image: url("./icons/play.svg");
+          mask-image: url("./icons/play.svg");
 }
 .icon-skip {
-  -webkit-mask-image: url("icons/skip.svg");
-          mask-image: url("icons/skip.svg");
+  -webkit-mask-image: url("./icons/skip.svg");
+          mask-image: url("./icons/skip.svg");
 }
 .icon-stop {
-  -webkit-mask-image: url("icons/stop.svg");
-          mask-image: url("icons/stop.svg");
+  -webkit-mask-image: url("./icons/stop.svg");
+          mask-image: url("./icons/stop.svg");
 }
 .icon-zoom-in {
-  -webkit-mask-image: url("icons/zoom-in.svg");
-          mask-image: url("icons/zoom-in.svg");
+  -webkit-mask-image: url("./icons/zoom-in.svg");
+          mask-image: url("./icons/zoom-in.svg");
 }
 .icon-zoom-out {
-  -webkit-mask-image: url("icons/zoom-out.svg");
-          mask-image: url("icons/zoom-out.svg");
+  -webkit-mask-image: url("./icons/zoom-out.svg");
+          mask-image: url("./icons/zoom-out.svg");
 }
 .icon-menu-dots {
-  -webkit-mask-image: url("icons/menu-dots.svg");
-          mask-image: url("icons/menu-dots.svg");
+  -webkit-mask-image: url("./icons/menu-dots.svg");
+          mask-image: url("./icons/menu-dots.svg");
 }
 .icon-plus {
-  -webkit-mask-image: url("icons/plus.svg");
-          mask-image: url("icons/plus.svg");
+  -webkit-mask-image: url("./icons/plus.svg");
+          mask-image: url("./icons/plus.svg");
 }
 .icon-close {
-  -webkit-mask-image: url("icons/close.svg");
-          mask-image: url("icons/close.svg");
+  -webkit-mask-image: url("./icons/close.svg");
+          mask-image: url("./icons/close.svg");
+}
+.icon-drag-handle {
+  -webkit-mask-image: url("./icons/drag-handle.svg");
+          mask-image: url("./icons/drag-handle.svg");
 }
 
 /* Square 34px icon button matching the add-button height so icon buttons align in a row; inner glyph stays 16px. */

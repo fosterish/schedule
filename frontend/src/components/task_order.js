@@ -1,4 +1,4 @@
-// Pure subtask ordering and cycle detection. Edge {from, to} means "from blocks to" (blocker → blocked).
+// Pure task ordering and cycle detection. Edge {from, to} means "from blocks to" (blocker → blocked).
 
 // Build blocker→blocked edges from a deps map; coerce keys to numbers. includeId filters nodes (ordering ignores completed tasks).
 export function edgesFromDepsMap(depsMap, includeId) {

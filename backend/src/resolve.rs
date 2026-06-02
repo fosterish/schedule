@@ -298,7 +298,7 @@ pub enum ResolvedPayload {
         project_name: Option<String>,
         /// Project color when resolved; `None` makes the UI fall back to the item's row color or gray.
         project_color: Option<String>,
-        /// True if the resolved project has any subtask (any state); the UI suppresses the "no subtask" suffix when false.
+        /// True if the resolved project has any task (any state); the UI suppresses the "no task" suffix when false.
         project_has_tasks: bool,
     },
 }
@@ -1137,7 +1137,7 @@ mod tests {
         .fetch_one(&pool)
         .await
         .unwrap();
-        // Zero tasks → `project_has_tasks` false, which the UI uses to suppress the "no subtask" suffix.
+        // Zero tasks → `project_has_tasks` false, which the UI uses to suppress the "no task" suffix.
         let item = project_item(project_id);
         let payload = resolve_payload(&pool, user_id, &item).await.unwrap();
         match payload {
@@ -1158,7 +1158,7 @@ mod tests {
         }
     }
 
-    /// A project with subtasks but none at the rank must report `project_has_tasks: true`; checks both paths.
+    /// A project with tasks but none at the rank must report `project_has_tasks: true`; checks both paths.
     #[tokio::test]
     async fn resolve_payload_empty_with_tasks_reports_true() {
         let (pool, user_id) = fresh_pool().await;

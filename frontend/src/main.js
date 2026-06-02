@@ -1,3 +1,4 @@
+import "./style.css";
 import m from "mithril";
 import { api, AuthError } from "./api.js";
 import { Shell } from "./shell.js";

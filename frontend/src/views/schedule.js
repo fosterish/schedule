@@ -1949,12 +1949,12 @@ function blockNameAndDesc(raw) {
   }
   if (p && p.kind === "empty") {
     if (p.project_name) {
-      // A project with no subtasks isn't "missing a rank" — render just the bold name. project_has_tasks counts any state.
+      // A project with no tasks isn't "missing a rank" — render just the bold name. project_has_tasks counts any state.
       if (p.project_has_tasks === false) {
         return { name: m("strong", p.project_name), desc: null };
       }
       return {
-        name: projectColonTaskName(p.project_name, "(no subtask at this rank)"),
+        name: projectColonTaskName(p.project_name, "(no task at this rank)"),
         desc: null,
       };
     }
@@ -2762,12 +2762,12 @@ const ItemPopup = {
               : null,
           ])
         : m(".field", [
-            m(".field-label", "Subtask"),
+            m(".field-label", "Task"),
             m(
               "select",
               { value: taskSelVal, onchange: onTaskChange },
-              m("option", { value: SEL_FIRST }, "Use first subtask"),
-              m("option", { value: SEL_SECOND }, "Use second subtask"),
+              m("option", { value: SEL_FIRST }, "Use first task"),
+              m("option", { value: SEL_SECOND }, "Use second task"),
               // Separator and specific-task list render only for a specific project; otherwise a lone separator would imply nonexistent options.
               ...(isSpecificProject
                 ? [

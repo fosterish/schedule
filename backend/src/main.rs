@@ -2,9 +2,12 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use axum::http::{header, HeaderValue};
 use axum::{routing::get, Router};
 use axum_extra::extract::cookie::Key;
+use tower::Layer;
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 
 use schedule::{db, load_env, routes, AppState};
@@ -45,7 +48,20 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let index = frontend_dir.join("index.html");
-    let static_service = ServeDir::new(&frontend_dir).fallback(ServeFile::new(index));
+
+    // `assets/` URLs are content-hashed by Vite, so cache them forever.
+    // Everything else (the SPA index.html) is `no-cache` so deploys land immediately.
+    let immutable = SetResponseHeaderLayer::overriding(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=31536000, immutable"),
+    );
+    let no_cache = SetResponseHeaderLayer::overriding(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-cache"),
+    );
+    let assets_service = immutable.layer(ServeDir::new(frontend_dir.join("assets")));
+    let static_service =
+        no_cache.layer(ServeDir::new(&frontend_dir).fallback(ServeFile::new(index)));
 
     let api = Router::new()
         .route("/health", get(|| async { "ok" }))
@@ -60,6 +76,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .nest("/api", api)
+        .nest_service("/assets", assets_service)
         .fallback_service(static_service)
         .layer(TraceLayer::new_for_http());
 

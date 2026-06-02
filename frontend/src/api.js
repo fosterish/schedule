@@ -112,7 +112,7 @@ export const api = {
   listTasks: (projectId) => request("GET", `/api/projects/${projectId}/tasks`),
   createTask: (projectId, body) =>
     request("POST", `/api/projects/${projectId}/tasks`, body || {}),
-  // Bulk-deletes all completed subtasks in one transaction (single composite undo entry).
+  // Bulk-deletes all completed tasks in one transaction (single composite undo entry).
   deleteCompletedTasks: (projectId) =>
     request("DELETE", `/api/projects/${projectId}/tasks/completed`),
   getTask: (id) => request("GET", `/api/tasks/${id}`),
