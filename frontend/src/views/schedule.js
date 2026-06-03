@@ -672,11 +672,7 @@ function renderSpecific(vnode, self) {
                 m.route.set("/date/" + shiftDateYmd(a.date, 1)),
             })
           : null,
-        m(
-          "button.today-btn",
-          { onclick: () => goToToday() },
-          "Today"
-        ),
+        m("button", { onclick: () => goToToday() }, "Today"),
         m(".spacer-h"),
         zoomControls(vnode, !!sched),
         m(".toolbar-sep"),

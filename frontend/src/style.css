@@ -270,6 +270,14 @@ a.tab.active {
   min-height: 34px;
 }
 
+/* Every toolbar button matches the 34px icon-button height; flex centering aligns text and glyphs alike. */
+.tab-fixed-header .toolbar-row button:not(.filter-clear) {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* `[left] .spacer-h [right]`: the spacer alone separates left navigation from right controls, no per-row `justify-content`. */
 
 /* Filter input + inline clear X: wrapper anchors the absolute X; input reserves right padding for text. */
@@ -1157,11 +1165,6 @@ button:has(> .label + .icon) {
   height: 34px;
   padding: 0;
   line-height: 0;
-}
-
-/* Pin line-height to the 16px icon height so this text button doesn't ride taller than adjacent icon buttons. */
-.today-btn {
-  line-height: 16px;
 }
 
 /* Nudge the icon down a hair so its optical center matches the text's cap-height. */

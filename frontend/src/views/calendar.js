@@ -209,7 +209,7 @@ export const Calendar = {
             m("span.icon.icon-chevron-right")
           ),
           m(
-            "button.today-btn",
+            "button",
             {
               onclick: () => {
                 const now = new Date();
