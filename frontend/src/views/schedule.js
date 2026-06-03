@@ -1830,7 +1830,7 @@ function applyPinchAnchor(vnode, pinch, zoom) {
   scroller.scrollTop = Math.max(0, target);
 }
 
-// Pinch tracks finger distance (clamped to the fit floor and a soft max); release snaps to the nearest availableSteps entry.
+// Pinch tracks finger distance, clamped to the fit floor and a soft max; release keeps the live zoom.
 function handlePinchStart(vnode, e) {
   // Claim the two-finger gesture so the browser neither scrolls nor zooms the page mid-pinch.
   e.preventDefault();
@@ -1873,31 +1873,11 @@ function handlePinchMove(vnode, e) {
   }
 }
 
+// Persist the live zoom as-is; the buttons, not release, snap to fixed steps.
 function handlePinchEnd(vnode) {
-  const pinch = vnode.state.pinch;
-  const steps = availableSteps(vnode);
-  const z = vnode.state.zoom;
-  let best = steps[0];
-  let bestDist = Math.abs(steps[0] - z);
-  for (let i = 1; i < steps.length; i++) {
-    const d = Math.abs(steps[i] - z);
-    if (d < bestDist) {
-      bestDist = d;
-      best = steps[i];
-    }
-  }
-  const fit = computeFitZoom(vnode);
-  if (fit != null && best < fit) best = fit;
-  vnode.state.zoom = best;
-  saveZoom(best);
+  saveZoom(vnode.state.zoom);
   vnode.state.pinch = null;
-  // Keep the focal point fixed across the snap-to-step adjustment.
-  if (pinch) {
-    m.redraw.sync();
-    applyPinchAnchor(vnode, pinch, best);
-  } else {
-    m.redraw();
-  }
+  m.redraw();
 }
 
 function blockStyle(it, scheduleStart, pxPerMin, raw) {
