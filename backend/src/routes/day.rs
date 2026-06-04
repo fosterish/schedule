@@ -9,7 +9,7 @@ use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
 use crate::models::schedule::ScheduleItem;
 use crate::resolve::{compute_layout, pick_schedule, resolve_day, DayView, ScheduleSource};
-use crate::routes::schedules::{load_items_tx, load_schedule, load_schedule_tx};
+use crate::routes::schedules::{load_items_tx, load_schedule_tx};
 use crate::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -58,7 +58,7 @@ async fn get_day(
     Ok(Json(view))
 }
 
-/// Pick the Today schedule: started override, else yesterday overflow, else idle override, else empty state with weekday template.
+/// Pick the Today schedule: started daily schedule, else yesterday overflow, else idle daily schedule, else empty state.
 pub async fn pick_today_view(
     pool: &sqlx::SqlitePool,
     user_id: i64,
@@ -67,9 +67,8 @@ pub async fn pick_today_view(
 ) -> AppResult<(DayView, Date, bool)> {
     let yesterday = today - Duration::days(1);
 
-    // Today counts only a date override; weekday template is empty-state metadata only.
-    let today_override_sid: Option<(i64,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_date_overrides
+    let today_daily_sid: Option<(i64,)> = sqlx::query_as(
+        "SELECT schedule_id FROM daily_schedules
            WHERE user_id = ? AND date = ?",
     )
     .bind(user_id)
@@ -77,8 +76,8 @@ pub async fn pick_today_view(
     .fetch_optional(pool)
     .await?;
 
-    if let Some((_sid,)) = today_override_sid {
-        // resolve_day picks the override first, returning the override-bound view.
+    if let Some((_sid,)) = today_daily_sid {
+        // resolve_day picks the daily schedule, returning the day-bound view.
         let mut today_view = resolve_day(pool, user_id, today).await?;
         let today_started = today_view
             .schedule
@@ -106,7 +105,7 @@ pub async fn pick_today_view(
         return Ok((today_view, today, false));
     }
 
-    // No today override: check yesterday overflow (override or template; editing gated upstream).
+    // No today schedule: check yesterday overflow (a daily schedule extending past midnight).
     let (y_sched, _) = pick_schedule(pool, user_id, yesterday).await?;
     if let Some(s) = &y_sched {
         let shifted_now = now_min + 1440;
@@ -117,21 +116,7 @@ pub async fn pick_today_view(
         }
     }
 
-    // Empty state: surface weekday template so client picks fork vs blank.
-    let weekday = today.weekday().number_days_from_monday() as i64;
-    let wd_row: Option<(Option<i64>,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_weekday_bindings
-           WHERE user_id = ? AND weekday = ?",
-    )
-    .bind(user_id)
-    .bind(weekday)
-    .fetch_optional(pool)
-    .await?;
-    let weekday_template = match wd_row.and_then(|(s,)| s) {
-        Some(sid) => Some(load_schedule(pool, user_id, sid).await?),
-        None => None,
-    };
-
+    // Empty state: the client offers create-blank or fork-from-template.
     let today_str = format!(
         "{}-{:02}-{:02}",
         today.year(),
@@ -145,7 +130,6 @@ pub async fn pick_today_view(
         items: vec![],
         now_min: Some(now_min),
         errors: vec![],
-        weekday_template,
     };
     Ok((view, today, false))
 }
@@ -232,7 +216,7 @@ async fn run_today(
 ) -> AppResult<Json<DayView>> {
     let today = resolve_today(&q.today)?;
     let clock_now = resolve_now_min(q.now_min)?;
-    // Targets the active schedule (today or yesterday overflow); requires an existing override, else the 409 fires.
+    // Targets the active schedule (today or yesterday overflow); requires an existing daily schedule, else the 409 fires.
     let (_, target_date, yesterday_overflow) =
         pick_today_view(&state.pool, user.0, today, clock_now).await?;
     let fallback_now_min = if yesterday_overflow {
@@ -252,14 +236,13 @@ async fn run_today(
     };
 
     let mut tx = state.pool.begin().await?;
-    let override_sid: Option<(i64,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_date_overrides WHERE user_id = ? AND date = ?",
-    )
-    .bind(user.0)
-    .bind(target_date)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let sched_id = match override_sid {
+    let daily_sid: Option<(i64,)> =
+        sqlx::query_as("SELECT schedule_id FROM daily_schedules WHERE user_id = ? AND date = ?")
+            .bind(user.0)
+            .bind(target_date)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let sched_id = match daily_sid {
         Some((sid,)) => sid,
         None => {
             return Err(AppError::conflict(

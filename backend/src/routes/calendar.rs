@@ -1,6 +1,5 @@
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
@@ -17,195 +16,88 @@ use crate::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/calendar/weekdays", get(list_weekdays).put(put_weekdays))
-        .route("/calendar/weekdays/{weekday}", get(get_weekday))
         .route(
-            "/calendar/weekdays/{weekday}/create",
-            post(create_weekday_template),
+            "/calendar/templates",
+            get(list_templates).post(create_template),
         )
-        .route("/calendar/overrides", get(list_overrides_range))
+        .route("/calendar/days", get(list_days_range))
+        .route("/calendar/days/{date}", get(get_day))
+        .route("/calendar/days/{date}/create", post(create_day))
         .route(
-            "/calendar/overrides/{date}",
-            get(get_override).post(put_override).delete(delete_override),
-        )
-        .route("/calendar/overrides/{date}/create", post(create_override))
-        .route(
-            "/calendar/overrides/{date}/fork-weekday-template",
-            post(fork_weekday_template),
+            "/calendar/days/{date}/fork/{template_id}",
+            post(fork_template),
         )
 }
 
 #[derive(Debug, Serialize)]
-struct WeekdayRow {
-    weekday: i64,
-    schedule: Option<Schedule>,
-}
-
-#[derive(Debug, Serialize)]
-struct OverrideRow {
+struct DayRow {
     date: String,
     schedule: Schedule,
 }
 
-async fn list_weekdays(
+async fn list_templates(
     State(state): State<AppState>,
     user: AuthUser,
-) -> AppResult<Json<Vec<WeekdayRow>>> {
-    let mut out = Vec::with_capacity(7);
-    for w in 0..7i64 {
-        let row: Option<(Option<i64>,)> = sqlx::query_as(
-            "SELECT schedule_id FROM calendar_weekday_bindings WHERE user_id = ? AND weekday = ?",
-        )
-        .bind(user.0)
-        .bind(w)
-        .fetch_optional(&state.pool)
-        .await?;
-        let sched = match row.and_then(|(s,)| s) {
-            Some(sid) => Some(load_schedule(&state.pool, user.0, sid).await?),
-            None => None,
-        };
-        out.push(WeekdayRow {
-            weekday: w,
-            schedule: sched,
-        });
-    }
-    Ok(Json(out))
+) -> AppResult<Json<Vec<Schedule>>> {
+    let rows: Vec<Schedule> = sqlx::query_as::<_, Schedule>(
+        "SELECT s.id, s.user_id, s.name, s.start_min, s.end_min
+           FROM schedules s
+           JOIN schedule_templates t ON t.schedule_id = s.id
+          WHERE t.user_id = ?
+          ORDER BY s.name ASC, s.id ASC",
+    )
+    .bind(user.0)
+    .fetch_all(&state.pool)
+    .await?;
+    Ok(Json(rows))
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct PutWeekdaysBody {
-    bindings: Vec<WeekdayInput>,
-}
-#[derive(Debug, serde::Deserialize)]
-struct WeekdayInput {
-    weekday: i64,
-    schedule_id: Option<i64>,
-}
+const NEW_TEMPLATE_NAME: &str = "New schedule template";
 
-async fn put_weekdays(
+async fn create_template(
     State(state): State<AppState>,
     user: AuthUser,
-    Json(body): Json<PutWeekdaysBody>,
-) -> AppResult<Json<Vec<WeekdayRow>>> {
+) -> AppResult<(StatusCode, Json<Schedule>)> {
     let mut tx = state.pool.begin().await?;
-    for b in body.bindings {
-        if !(0..7).contains(&b.weekday) {
-            return Err(AppError::validation("weekday must be 0..=6"));
-        }
-        if let Some(sid) = b.schedule_id {
-            load_schedule_tx(&mut tx, user.0, sid).await?;
-        }
-        sqlx::query(
-            "INSERT INTO calendar_weekday_bindings (user_id, weekday, schedule_id)
-             VALUES (?, ?, ?)
-             ON CONFLICT(user_id, weekday) DO UPDATE SET schedule_id = excluded.schedule_id",
-        )
+    let row: (i64,) = sqlx::query_as(
+        "INSERT INTO schedules (user_id, name, start_min, end_min)
+         VALUES (?, ?, ?, ?) RETURNING id",
+    )
+    .bind(user.0)
+    .bind(NEW_TEMPLATE_NAME)
+    .bind(DEFAULT_START_MIN)
+    .bind(DEFAULT_END_MIN)
+    .fetch_one(&mut *tx)
+    .await?;
+    let sid = row.0;
+    sqlx::query("INSERT INTO schedule_templates (user_id, schedule_id) VALUES (?, ?)")
         .bind(user.0)
-        .bind(b.weekday)
-        .bind(b.schedule_id)
+        .bind(sid)
         .execute(&mut *tx)
         .await?;
-    }
-    tx.commit().await?;
-    list_weekdays(State(state), user).await
-}
+    let sched = load_schedule_tx(&mut tx, user.0, sid).await?;
 
-async fn get_weekday(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path(weekday): Path<i64>,
-) -> AppResult<Json<WeekdayRow>> {
-    if !(0..7).contains(&weekday) {
-        return Err(AppError::validation("weekday must be 0..=6"));
-    }
-    let row: Option<(Option<i64>,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_weekday_bindings WHERE user_id = ? AND weekday = ?",
+    // Pair schedule insert with the template binding so undo wipes both atomically.
+    let snap = snapshot_schedule(&mut tx, user.0, sid)
+        .await?
+        .expect("just inserted");
+    record_history(
+        &mut tx,
+        user.0,
+        CTX_SCHEDULE,
+        "create_template",
+        &[
+            SubOp::InsertSchedule { row: snap },
+            SubOp::InsertTemplate { schedule_id: sid },
+        ],
+        &[
+            SubOp::DeleteTemplate { schedule_id: sid },
+            SubOp::DeleteSchedule { id: sid },
+        ],
     )
-    .bind(user.0)
-    .bind(weekday)
-    .fetch_optional(&state.pool)
     .await?;
-    let sched = match row.and_then(|(s,)| s) {
-        Some(sid) => Some(load_schedule(&state.pool, user.0, sid).await?),
-        None => None,
-    };
-    Ok(Json(WeekdayRow {
-        weekday,
-        schedule: sched,
-    }))
-}
-
-async fn create_weekday_template(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path(weekday): Path<i64>,
-) -> AppResult<Json<WeekdayRow>> {
-    if !(0..7).contains(&weekday) {
-        return Err(AppError::validation("weekday must be 0..=6"));
-    }
-    let mut tx = state.pool.begin().await?;
-    let existing: Option<(Option<i64>,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_weekday_bindings WHERE user_id = ? AND weekday = ?",
-    )
-    .bind(user.0)
-    .bind(weekday)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let sched = match existing.and_then(|(s,)| s) {
-        Some(sid) => load_schedule_tx(&mut tx, user.0, sid).await?,
-        None => {
-            let name = WEEKDAY_NAMES[weekday as usize].to_string();
-            let row: (i64,) = sqlx::query_as(
-                "INSERT INTO schedules (user_id, name, start_min, end_min)
-                 VALUES (?, ?, ?, ?) RETURNING id",
-            )
-            .bind(user.0)
-            .bind(&name)
-            .bind(DEFAULT_START_MIN)
-            .bind(DEFAULT_END_MIN)
-            .fetch_one(&mut *tx)
-            .await?;
-            sqlx::query(
-                "INSERT INTO calendar_weekday_bindings (user_id, weekday, schedule_id)
-                 VALUES (?, ?, ?)
-                 ON CONFLICT(user_id, weekday) DO UPDATE SET schedule_id = excluded.schedule_id",
-            )
-            .bind(user.0)
-            .bind(weekday)
-            .bind(row.0)
-            .execute(&mut *tx)
-            .await?;
-            let sched = load_schedule_tx(&mut tx, user.0, row.0).await?;
-            // Pair schedule insert with weekday binding so undo wipes both atomically.
-            let snap = snapshot_schedule(&mut tx, user.0, row.0)
-                .await?
-                .expect("just inserted");
-            record_history(
-                &mut tx,
-                user.0,
-                CTX_SCHEDULE,
-                "create_weekday_template",
-                &[
-                    SubOp::InsertSchedule { row: snap },
-                    SubOp::InsertWeekdayBinding {
-                        weekday,
-                        schedule_id: row.0,
-                    },
-                ],
-                &[
-                    SubOp::DeleteWeekdayBinding { weekday },
-                    SubOp::DeleteSchedule { id: row.0 },
-                ],
-            )
-            .await?;
-            sched
-        }
-    };
     tx.commit().await?;
-    Ok(Json(WeekdayRow {
-        weekday,
-        schedule: Some(sched),
-    }))
+    Ok((StatusCode::CREATED, Json(sched)))
 }
 
 fn parse_date(s: &str) -> AppResult<Date> {
@@ -224,12 +116,12 @@ struct RangeQuery {
     end: String,
 }
 
-/// Batch fetch all date overrides in `[start, end]` so a month loads in one request.
-async fn list_overrides_range(
+/// Batch fetch all daily schedules in `[start, end]` so a month loads in one request.
+async fn list_days_range(
     State(state): State<AppState>,
     user: AuthUser,
     Query(q): Query<RangeQuery>,
-) -> AppResult<Json<Vec<OverrideRow>>> {
+) -> AppResult<Json<Vec<DayRow>>> {
     let start = parse_date(&q.start)?;
     let end = parse_date(&q.end)?;
     if end < start {
@@ -237,7 +129,7 @@ async fn list_overrides_range(
     }
     let rows: Vec<(Date, i64)> = sqlx::query_as(
         "SELECT date, schedule_id
-           FROM calendar_date_overrides
+           FROM daily_schedules
           WHERE user_id = ? AND date >= ? AND date <= ?
           ORDER BY date ASC",
     )
@@ -249,7 +141,7 @@ async fn list_overrides_range(
     let mut out = Vec::with_capacity(rows.len());
     for (date, sid) in rows {
         let sched = load_schedule(&state.pool, user.0, sid).await?;
-        out.push(OverrideRow {
+        out.push(DayRow {
             date: format_date(date),
             schedule: sched,
         });
@@ -257,87 +149,41 @@ async fn list_overrides_range(
     Ok(Json(out))
 }
 
-async fn get_override(
+async fn get_day(
     State(state): State<AppState>,
     user: AuthUser,
     Path(date_str): Path<String>,
-) -> AppResult<Json<Option<OverrideRow>>> {
+) -> AppResult<Json<Option<DayRow>>> {
     let date = parse_date(&date_str)?;
-    let row: Option<(i64,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_date_overrides WHERE user_id = ? AND date = ?",
-    )
-    .bind(user.0)
-    .bind(date)
-    .fetch_optional(&state.pool)
-    .await?;
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT schedule_id FROM daily_schedules WHERE user_id = ? AND date = ?")
+            .bind(user.0)
+            .bind(date)
+            .fetch_optional(&state.pool)
+            .await?;
     let Some((sid,)) = row else {
         return Ok(Json(None));
     };
     let sched = load_schedule(&state.pool, user.0, sid).await?;
-    Ok(Json(Some(OverrideRow {
+    Ok(Json(Some(DayRow {
         date: format_date(date),
         schedule: sched,
     })))
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct PutOverrideBody {
-    schedule_id: i64,
-}
-
-async fn put_override(
+async fn create_day(
     State(state): State<AppState>,
     user: AuthUser,
     Path(date_str): Path<String>,
-    Json(body): Json<PutOverrideBody>,
-) -> AppResult<Json<OverrideRow>> {
+) -> AppResult<Json<DayRow>> {
     let date = parse_date(&date_str)?;
     let mut tx = state.pool.begin().await?;
-    let sched = load_schedule_tx(&mut tx, user.0, body.schedule_id).await?;
-    sqlx::query(
-        "INSERT INTO calendar_date_overrides (user_id, date, schedule_id) VALUES (?, ?, ?)
-         ON CONFLICT(user_id, date) DO UPDATE SET schedule_id = excluded.schedule_id",
-    )
-    .bind(user.0)
-    .bind(date)
-    .bind(body.schedule_id)
-    .execute(&mut *tx)
-    .await?;
-    tx.commit().await?;
-    Ok(Json(OverrideRow {
-        date: format_date(date),
-        schedule: sched,
-    }))
-}
-
-async fn delete_override(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path(date_str): Path<String>,
-) -> AppResult<impl IntoResponse> {
-    let date = parse_date(&date_str)?;
-    sqlx::query("DELETE FROM calendar_date_overrides WHERE user_id = ? AND date = ?")
-        .bind(user.0)
-        .bind(date)
-        .execute(&state.pool)
-        .await?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn create_override(
-    State(state): State<AppState>,
-    user: AuthUser,
-    Path(date_str): Path<String>,
-) -> AppResult<Json<OverrideRow>> {
-    let date = parse_date(&date_str)?;
-    let mut tx = state.pool.begin().await?;
-    let existing: Option<(i64,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_date_overrides WHERE user_id = ? AND date = ?",
-    )
-    .bind(user.0)
-    .bind(date)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let existing: Option<(i64,)> =
+        sqlx::query_as("SELECT schedule_id FROM daily_schedules WHERE user_id = ? AND date = ?")
+            .bind(user.0)
+            .bind(date)
+            .fetch_optional(&mut *tx)
+            .await?;
     let sched = match existing {
         Some((sid,)) => load_schedule_tx(&mut tx, user.0, sid).await?,
         None => {
@@ -352,8 +198,7 @@ async fn create_override(
             .fetch_one(&mut *tx)
             .await?;
             sqlx::query(
-                "INSERT INTO calendar_date_overrides (user_id, date, schedule_id)
-                 VALUES (?, ?, ?)",
+                "INSERT INTO daily_schedules (user_id, date, schedule_id) VALUES (?, ?, ?)",
             )
             .bind(user.0)
             .bind(date)
@@ -361,7 +206,7 @@ async fn create_override(
             .execute(&mut *tx)
             .await?;
             let sched = load_schedule_tx(&mut tx, user.0, row.0).await?;
-            // Pair schedule + override binding so undo wipes both, leaving no dangling override.
+            // Pair schedule + daily binding so undo wipes both, leaving no dangling row.
             let snap = snapshot_schedule(&mut tx, user.0, row.0)
                 .await?
                 .expect("just inserted");
@@ -370,16 +215,16 @@ async fn create_override(
                 &mut tx,
                 user.0,
                 CTX_SCHEDULE,
-                "create_override",
+                "create_day",
                 &[
                     SubOp::InsertSchedule { row: snap },
-                    SubOp::InsertOverride {
+                    SubOp::InsertDailySchedule {
                         date: date_s.clone(),
                         schedule_id: row.0,
                     },
                 ],
                 &[
-                    SubOp::DeleteOverride { date: date_s },
+                    SubOp::DeleteDailySchedule { date: date_s },
                     SubOp::DeleteSchedule { id: row.0 },
                 ],
             )
@@ -388,74 +233,59 @@ async fn create_override(
         }
     };
     tx.commit().await?;
-    Ok(Json(OverrideRow {
+    Ok(Json(DayRow {
         date: format_date(date),
         schedule: sched,
     }))
 }
 
-async fn fork_weekday_template(
+/// Fork a chosen template into the date's daily schedule, cloning its items.
+async fn fork_template(
     State(state): State<AppState>,
     user: AuthUser,
-    Path(date_str): Path<String>,
-) -> AppResult<Json<OverrideRow>> {
+    Path((date_str, template_id)): Path<(String, i64)>,
+) -> AppResult<Json<DayRow>> {
     let date = parse_date(&date_str)?;
     let mut tx = state.pool.begin().await?;
 
-    // Idempotent: existing override returned as-is, no history recorded.
-    let existing: Option<(i64,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_date_overrides WHERE user_id = ? AND date = ?",
-    )
-    .bind(user.0)
-    .bind(date)
-    .fetch_optional(&mut *tx)
-    .await?;
+    // Idempotent: an existing daily schedule is returned as-is, no history recorded.
+    let existing: Option<(i64,)> =
+        sqlx::query_as("SELECT schedule_id FROM daily_schedules WHERE user_id = ? AND date = ?")
+            .bind(user.0)
+            .bind(date)
+            .fetch_optional(&mut *tx)
+            .await?;
     if let Some((sid,)) = existing {
         let sched = load_schedule_tx(&mut tx, user.0, sid).await?;
         tx.commit().await?;
-        return Ok(Json(OverrideRow {
+        return Ok(Json(DayRow {
             date: format_date(date),
             schedule: sched,
         }));
     }
 
-    let weekday = (date.weekday().number_days_from_monday()) as i64;
-    let template_sid: Option<(Option<i64>,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_weekday_bindings WHERE user_id = ? AND weekday = ?",
+    // Require the source to be one of the user's templates.
+    let is_template: Option<(i64,)> = sqlx::query_as(
+        "SELECT schedule_id FROM schedule_templates WHERE user_id = ? AND schedule_id = ?",
     )
     .bind(user.0)
-    .bind(weekday)
+    .bind(template_id)
     .fetch_optional(&mut *tx)
     .await?;
-    let template_sid: Option<i64> = template_sid.and_then(|(s,)| s);
+    if is_template.is_none() {
+        return Err(AppError::not_found("template"));
+    }
 
-    let new_sched_id = match template_sid {
-        Some(tid) => clone_schedule(&mut tx, user.0, tid, &format_date(date)).await?,
-        None => {
-            let row: (i64,) = sqlx::query_as(
-                "INSERT INTO schedules (user_id, name, start_min, end_min)
-                 VALUES (?, ?, ?, ?) RETURNING id",
-            )
-            .bind(user.0)
-            .bind(format_date(date))
-            .bind(DEFAULT_START_MIN)
-            .bind(DEFAULT_END_MIN)
-            .fetch_one(&mut *tx)
-            .await?;
-            row.0
-        }
-    };
-    sqlx::query(
-        "INSERT INTO calendar_date_overrides (user_id, date, schedule_id) VALUES (?, ?, ?)",
-    )
-    .bind(user.0)
-    .bind(date)
-    .bind(new_sched_id)
-    .execute(&mut *tx)
-    .await?;
+    let new_sched_id = clone_schedule(&mut tx, user.0, template_id, &format_date(date)).await?;
+    sqlx::query("INSERT INTO daily_schedules (user_id, date, schedule_id) VALUES (?, ?, ?)")
+        .bind(user.0)
+        .bind(date)
+        .bind(new_sched_id)
+        .execute(&mut *tx)
+        .await?;
     let sched = load_schedule_tx(&mut tx, user.0, new_sched_id).await?;
 
-    // Pack schedule + cloned items + override into one entry; items keep fresh ids so redo re-inserts them.
+    // Pack schedule + cloned items + daily binding into one entry; items keep fresh ids so redo re-inserts them.
     let snap = snapshot_schedule(&mut tx, user.0, new_sched_id)
         .await?
         .expect("just inserted");
@@ -469,12 +299,12 @@ async fn fork_weekday_template(
         forward.push(SubOp::InsertItem { row: item_snap });
     }
     let date_s = format_date(date);
-    forward.push(SubOp::InsertOverride {
+    forward.push(SubOp::InsertDailySchedule {
         date: date_s.clone(),
         schedule_id: new_sched_id,
     });
     let backward = vec![
-        SubOp::DeleteOverride { date: date_s },
+        SubOp::DeleteDailySchedule { date: date_s },
         // DeleteSchedule cascades to schedule_items; no per-item Delete ops needed.
         SubOp::DeleteSchedule { id: new_sched_id },
     ];
@@ -482,14 +312,14 @@ async fn fork_weekday_template(
         &mut tx,
         user.0,
         CTX_SCHEDULE,
-        "fork_weekday_template",
+        "fork_template",
         &forward,
         &backward,
     )
     .await?;
 
     tx.commit().await?;
-    Ok(Json(OverrideRow {
+    Ok(Json(DayRow {
         date: format_date(date),
         schedule: sched,
     }))
@@ -530,13 +360,3 @@ pub(crate) async fn clone_schedule(
     .await?;
     Ok(new_sid)
 }
-
-const WEEKDAY_NAMES: [&str; 7] = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-];

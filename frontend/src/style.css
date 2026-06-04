@@ -1845,10 +1845,6 @@ button .label + .icon {
   border-radius: var(--radius);
   overflow: hidden;
 }
-/* Weekday-template fallback cells dim their mini-timeline to distinguish "real schedule" from "just the template". */
-.mini-timeline.mini-timeline--template {
-  opacity: 0.45;
-}
 .mini-block {
   position: absolute;
   top: 0;
@@ -1858,49 +1854,25 @@ button .label + .icon {
   border-right: 1px solid var(--bg);
 }
 
-/* Day popup: two full-width "button cards" navigating to Schedule; taller than a button so the MiniTimeline fits. */
-.day-popup-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* Schedule Templates accordion: each row is a full-width name button with a trailing trash control. */
+.calendar-templates {
+  margin-bottom: 16px;
 }
-
-.day-popup-cards .day-card {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  text-align: left;
-  width: 100%;
-  min-height: 72px;
-  padding: 8px 12px 10px;
-  gap: 6px;
-}
-
-.day-popup-cards .day-card-label {
-  font-size: 11px;
-  color: var(--fg-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.day-popup-cards .day-card-body {
-  flex: 1 1 auto;
-  display: flex;
+.template-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 8px;
   align-items: center;
-  justify-content: stretch;
-  min-height: 0;
 }
-
-/* MiniTimeline fills the card body; height is set inline, so only flex/margin are overridden here. */
-.day-popup-cards .day-card-body .mini-timeline {
-  flex: 1 1 auto;
-  margin: 0;
+/* Name reads as a flat, left-aligned link-button filling the row; chrome stays minimal like a list item. */
+.template-name {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
 }
-
-.day-popup-cards .day-card-empty {
-  color: var(--fg-muted);
-  font-style: italic;
+.template-name:hover {
+  border-color: var(--border);
 }
 
 /* Saved tick overlaid inside the input (not in flow) so its fade doesn't shift content; `.autofield` anchors it. */

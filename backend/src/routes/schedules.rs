@@ -158,33 +158,32 @@ async fn delete_schedule(
             .expect("item exists pre-delete");
         item_snaps.push(snap);
     }
-    let override_date_row: Option<(time::Date,)> = sqlx::query_as(
-        "SELECT date FROM calendar_date_overrides
+    let daily_date_row: Option<(time::Date,)> = sqlx::query_as(
+        "SELECT date FROM daily_schedules
            WHERE user_id = ? AND schedule_id = ?",
     )
     .bind(user.0)
     .bind(id)
     .fetch_optional(&mut *tx)
     .await?;
-    // A schedule may be bound to multiple weekdays; capture all so undo restores every binding.
-    let weekday_rows: Vec<(i64,)> = sqlx::query_as(
-        "SELECT weekday FROM calendar_weekday_bindings
+    let is_template: Option<(i64,)> = sqlx::query_as(
+        "SELECT schedule_id FROM schedule_templates
            WHERE user_id = ? AND schedule_id = ?",
     )
     .bind(user.0)
     .bind(id)
-    .fetch_all(&mut *tx)
+    .fetch_optional(&mut *tx)
     .await?;
-    let weekdays: Vec<i64> = weekday_rows.into_iter().map(|(w,)| w).collect();
+    let is_template = is_template.is_some();
 
     // Forward drops bindings before the schedule; backward re-inserts schedule, items, then bindings (FK order).
     let mut forward: Vec<crate::history::SubOp> = Vec::new();
-    let override_date_str: Option<String> = override_date_row.map(|(d,)| format_date_iso(d));
-    if let Some(date) = &override_date_str {
-        forward.push(crate::history::SubOp::DeleteOverride { date: date.clone() });
+    let daily_date_str: Option<String> = daily_date_row.map(|(d,)| format_date_iso(d));
+    if let Some(date) = &daily_date_str {
+        forward.push(crate::history::SubOp::DeleteDailySchedule { date: date.clone() });
     }
-    for wd in &weekdays {
-        forward.push(crate::history::SubOp::DeleteWeekdayBinding { weekday: *wd });
+    if is_template {
+        forward.push(crate::history::SubOp::DeleteTemplate { schedule_id: id });
     }
     forward.push(crate::history::SubOp::DeleteSchedule { id });
 
@@ -193,24 +192,21 @@ async fn delete_schedule(
     for snap in item_snaps {
         backward.push(crate::history::SubOp::InsertItem { row: snap });
     }
-    if let Some(date) = &override_date_str {
-        backward.push(crate::history::SubOp::InsertOverride {
+    if let Some(date) = &daily_date_str {
+        backward.push(crate::history::SubOp::InsertDailySchedule {
             date: date.clone(),
             schedule_id: id,
         });
     }
-    for wd in &weekdays {
-        backward.push(crate::history::SubOp::InsertWeekdayBinding {
-            weekday: *wd,
-            schedule_id: id,
-        });
+    if is_template {
+        backward.push(crate::history::SubOp::InsertTemplate { schedule_id: id });
     }
 
     // Delete order mirrors the forward ops so redo reproduces this exact post-state.
-    if let Some(date) = &override_date_str {
+    if let Some(date) = &daily_date_str {
         let parsed = parse_date_iso(date)?;
         sqlx::query(
-            "DELETE FROM calendar_date_overrides
+            "DELETE FROM daily_schedules
                WHERE user_id = ? AND date = ?",
         )
         .bind(user.0)
@@ -218,14 +214,13 @@ async fn delete_schedule(
         .execute(&mut *tx)
         .await?;
     }
-    for wd in &weekdays {
-        // Delete the binding outright (not via SET NULL cascade) so no dangling rows remain.
+    if is_template {
         sqlx::query(
-            "DELETE FROM calendar_weekday_bindings
-               WHERE user_id = ? AND weekday = ?",
+            "DELETE FROM schedule_templates
+               WHERE user_id = ? AND schedule_id = ?",
         )
         .bind(user.0)
-        .bind(*wd)
+        .bind(id)
         .execute(&mut *tx)
         .await?;
     }

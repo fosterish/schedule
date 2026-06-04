@@ -246,17 +246,13 @@ pub struct DayView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub now_min: Option<i64>,
     pub errors: Vec<String>,
-    /// Weekday template for today, populated only in the empty-today state so the UI can offer "Fork the template".
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub weekday_template: Option<Schedule>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ScheduleSource {
     None,
-    WeekdayTemplate,
-    DateOverride,
+    Daily,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -327,7 +323,6 @@ pub async fn resolve_day(pool: &SqlitePool, user_id: i64, date: Date) -> AppResu
             items: vec![],
             now_min: None,
             errors: vec![],
-            weekday_template: None,
         });
     };
     let items = crate::routes::schedules::load_items(pool, schedule.id).await?;
@@ -356,7 +351,6 @@ pub async fn resolve_day(pool: &SqlitePool, user_id: i64, date: Date) -> AppResu
         items: day_items,
         now_min: None,
         errors,
-        weekday_template: None,
     })
 }
 
@@ -365,28 +359,15 @@ pub async fn pick_schedule(
     user_id: i64,
     date: Date,
 ) -> AppResult<(Option<Schedule>, ScheduleSource)> {
-    let override_sid: Option<(i64,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_date_overrides WHERE user_id = ? AND date = ?",
-    )
-    .bind(user_id)
-    .bind(date)
-    .fetch_optional(pool)
-    .await?;
-    if let Some((sid,)) = override_sid {
+    let daily_sid: Option<(i64,)> =
+        sqlx::query_as("SELECT schedule_id FROM daily_schedules WHERE user_id = ? AND date = ?")
+            .bind(user_id)
+            .bind(date)
+            .fetch_optional(pool)
+            .await?;
+    if let Some((sid,)) = daily_sid {
         let s = crate::routes::schedules::load_schedule(pool, user_id, sid).await?;
-        return Ok((Some(s), ScheduleSource::DateOverride));
-    }
-    let weekday = date.weekday().number_days_from_monday() as i64;
-    let wd: Option<(Option<i64>,)> = sqlx::query_as(
-        "SELECT schedule_id FROM calendar_weekday_bindings WHERE user_id = ? AND weekday = ?",
-    )
-    .bind(user_id)
-    .bind(weekday)
-    .fetch_optional(pool)
-    .await?;
-    if let Some((Some(sid),)) = wd {
-        let s = crate::routes::schedules::load_schedule(pool, user_id, sid).await?;
-        return Ok((Some(s), ScheduleSource::WeekdayTemplate));
+        return Ok((Some(s), ScheduleSource::Daily));
     }
     Ok((None, ScheduleSource::None))
 }

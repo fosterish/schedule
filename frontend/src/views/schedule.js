@@ -86,7 +86,7 @@ function isScheduleActive(vnode) {
   const route = m.route.get() || "";
   const a = vnode.attrs;
   if (a.mode === "today") return route === "/today";
-  if (a.mode === "weekday") return route === "/weekday/" + a.weekday;
+  if (a.mode === "template") return route === "/template/" + a.scheduleId;
   if (a.mode === "date") return route === "/date/" + a.date;
   return false;
 }
@@ -99,7 +99,7 @@ const LAST_SCHEDULE_ROUTE_KEY = "schedule:lastRoute";
 function isScheduleRoute(route) {
   if (typeof route !== "string") return false;
   if (route === "/today" || route.startsWith("/today?")) return true;
-  if (route.startsWith("/weekday/")) return true;
+  if (route.startsWith("/template/")) return true;
   if (route.startsWith("/date/")) return true;
   return false;
 }
@@ -199,11 +199,11 @@ export const Schedule = {
     }
     if (
       vnode.state._lastMode !== vnode.attrs.mode ||
-      vnode.state._lastWeekday !== vnode.attrs.weekday ||
+      vnode.state._lastScheduleId !== vnode.attrs.scheduleId ||
       vnode.state._lastDate !== vnode.attrs.date
     ) {
       vnode.state._lastMode = vnode.attrs.mode;
-      vnode.state._lastWeekday = vnode.attrs.weekday;
+      vnode.state._lastScheduleId = vnode.attrs.scheduleId;
       vnode.state._lastDate = vnode.attrs.date;
       // Reset the cursor on every mode change; the mode delta is the natural trigger (reload lacks a fresh-vs-refresh signal).
       if (vnode.attrs.mode === "today") {
@@ -261,10 +261,33 @@ export const Schedule = {
         },
         () => done()
       );
-    } else if (a.mode === "weekday") {
-      return api.getWeekday(a.weekday).then(
+    } else if (a.mode === "template") {
+      // A template is just a schedule; route away if it was deleted out from under us.
+      // The today lookup drives the conditional "Fork to today" toolbar button.
+      api.getDay(todayDateString()).then(
         (row) => {
-          if (row.schedule)
+          vnode.state.todayExists = !!(row && row.schedule);
+          m.redraw();
+        },
+        () => {
+          vnode.state.todayExists = true;
+        }
+      );
+      return api.scheduleLayout(a.scheduleId).then(
+        (lo) => {
+          vnode.state.layout = lo;
+          vnode.state.day = null;
+          done();
+        },
+        () => {
+          m.route.set("/today");
+          done();
+        }
+      );
+    } else if (a.mode === "date") {
+      return api.getDay(a.date).then(
+        (row) => {
+          if (row && row.schedule)
             return api.scheduleLayout(row.schedule.id).then(
               (lo) => {
                 vnode.state.layout = lo;
@@ -277,37 +300,6 @@ export const Schedule = {
           vnode.state.day = null;
           done();
           return undefined;
-        },
-        () => done()
-      );
-    } else if (a.mode === "date") {
-      return api.getOverride(a.date).then(
-        (row) => {
-          if (row && row.schedule)
-            return api.scheduleLayout(row.schedule.id).then(
-              (lo) => {
-                vnode.state.layout = lo;
-                vnode.state.day = null;
-                vnode.state.weekdayTemplateForDate = null;
-                done();
-              },
-              () => done()
-            );
-          vnode.state.layout = { schedule: null, items: [], errors: [] };
-          vnode.state.day = null;
-          // Fetch the weekday binding alongside the missing override so the empty state can decide whether to show the Fork button.
-          const wd = weekdayMondayBasedFromDate(parseLocalYmdInline(a.date));
-          return api.getWeekday(wd).then(
-            (wdRow) => {
-              vnode.state.weekdayTemplateForDate =
-                wdRow && wdRow.schedule ? wdRow.schedule : null;
-              done();
-            },
-            () => {
-              vnode.state.weekdayTemplateForDate = null;
-              done();
-            }
-          );
         },
         () => done()
       );
@@ -343,8 +335,8 @@ function renderToday(vnode, self) {
   const s = vnode.state;
   const d = s.day;
   const sched = d.schedule;
-  // Editing requires a real date override; the yesterday-overflow display (source weekday_template) is intentionally read-only.
-  const editable = !!sched && d.source === "date_override";
+  // Editable only when the resolved day is actually today; the yesterday-overflow display is read-only.
+  const editable = !!sched && d.date === todayDateString();
   const title = "Today";
   const hasItems = !!(d.items && d.items.length > 0);
   // Cursor minute is the source of truth for play/skip/stop; backend applies the same at_min the client sends.
@@ -440,7 +432,7 @@ function renderToday(vnode, self) {
             onCursorReset: () => setCursor(vnode, s.nowMin),
             onCursorHide: () => setCursor(vnode, null),
           })
-        : renderTodayEmptyState(vnode, self, d.weekday_template)
+        : renderTodayEmptyState(vnode, self)
     ),
     editable && s.editingProps
       ? m(SchedulePropsPopup, {
@@ -506,38 +498,32 @@ function setCursor(vnode, next) {
   m.redraw();
 }
 
-// Empty state: Create always shown; Fork appears when a weekday template exists for today.
-function renderTodayEmptyState(vnode, self, weekdayTemplate) {
-  const wdName = weekdayNameForToday();
+// Empty state: Create a blank schedule, or fork one of the saved templates into today.
+function renderTodayEmptyState(vnode, self) {
+  const date = vnode.state.day && vnode.state.day.date
+    ? vnode.state.day.date
+    : todayDateString();
   return m(
     ".empty-state",
     m("p.empty-state-msg", "No schedule for today"),
     m(".empty-state-actions", [
       m(
         "button.primary",
-        { onclick: () => createTodaySchedule(vnode, self) },
+        { onclick: () => createDailySchedule(vnode, self, date) },
         m("span.icon.icon-plus"),
         m("span.label", "Create new schedule")
       ),
-      weekdayTemplate
-        ? m(
-            "button.primary",
-            { onclick: () => forkTodayFromTemplate(vnode, self) },
-            m("span.icon.icon-plus"),
-            m("span.label", `Fork the ${wdName} template`)
-          )
-        : null,
+      m(ForkTemplateMenu, {
+        onFork: (templateId) => forkDayFromTemplate(vnode, self, date, templateId),
+      }),
     ])
   );
 }
 
-// Create a blank today schedule (no fork). createOverride is idempotent, so a double-click during reload is safe.
-async function createTodaySchedule(vnode, self) {
-  const date = vnode.state.day && vnode.state.day.date
-    ? vnode.state.day.date
-    : todayDateString();
+// Create a blank daily schedule (no fork). createDay is idempotent, so a double-click during reload is safe.
+async function createDailySchedule(vnode, self, date) {
   try {
-    await api.createOverride(date);
+    await api.createDay(date);
   } catch (e) {
     console.error("Failed to create schedule:", e);
     return;
@@ -545,13 +531,10 @@ async function createTodaySchedule(vnode, self) {
   await self.reload(vnode);
 }
 
-// forkWeekdayTemplate is idempotent and falls back to a blank create when no template is bound.
-async function forkTodayFromTemplate(vnode, self) {
-  const date = vnode.state.day && vnode.state.day.date
-    ? vnode.state.day.date
-    : todayDateString();
+// Fork the chosen template into the day's daily schedule. forkTemplate is idempotent.
+async function forkDayFromTemplate(vnode, self, date, templateId) {
   try {
-    await api.forkWeekdayTemplate(date);
+    await api.forkTemplate(date, templateId);
   } catch (e) {
     console.error("Failed to fork template:", e);
     return;
@@ -559,7 +542,7 @@ async function forkTodayFromTemplate(vnode, self) {
   await self.reload(vnode);
 }
 
-// Editing is gated on editable, so this only fires for date-override schedules; reload then falls back to the empty state.
+// Editing is gated on editable, so this only fires for today's own schedule; reload then falls back to the empty state.
 async function deleteTodaySchedule(vnode, self) {
   const d = vnode.state.day;
   if (!d || !d.schedule) return;
@@ -572,15 +555,6 @@ async function deleteTodaySchedule(vnode, self) {
   vnode.state.editingProps = false;
   await self.reload(vnode);
   m.redraw();
-}
-
-// Monday-based 0..6 weekday frame matching the backend's calendar_weekday_bindings.weekday.
-function weekdayMondayBasedFromDate(d) {
-  return (d.getDay() + 6) % 7;
-}
-
-function weekdayNameForToday() {
-  return WEEKDAY_NAMES[weekdayMondayBasedFromDate(new Date())];
 }
 
 // Close the popup only after reload completes, else it vanishes one redraw before new data, revealing the pre-commit layout.
@@ -641,15 +615,8 @@ function renderSpecific(vnode, self) {
         }),
       ]),
       m(".toolbar-row.toolbar-row-secondary", [
-        // Chevrons step weekday Mon→Sun cyclically or date by one calendar day; spacer-h pushes the zoom/undo cluster right.
-        a.mode === "weekday"
-          ? iconButton({
-              icon: "chevron-left",
-              title: "Previous weekday",
-              onclick: () =>
-                m.route.set("/weekday/" + ((a.weekday + 6) % 7)),
-            })
-          : a.mode === "date"
+        // Date mode steps a calendar day at a time; templates have no neighbours, so no chevrons.
+        a.mode === "date"
           ? iconButton({
               icon: "chevron-left",
               title: "Previous day",
@@ -657,14 +624,7 @@ function renderSpecific(vnode, self) {
                 m.route.set("/date/" + shiftDateYmd(a.date, -1)),
             })
           : null,
-        a.mode === "weekday"
-          ? iconButton({
-              icon: "chevron-right",
-              title: "Next weekday",
-              onclick: () =>
-                m.route.set("/weekday/" + ((a.weekday + 1) % 7)),
-            })
-          : a.mode === "date"
+        a.mode === "date"
           ? iconButton({
               icon: "chevron-right",
               title: "Next day",
@@ -673,6 +633,14 @@ function renderSpecific(vnode, self) {
             })
           : null,
         m("button", { onclick: () => goToToday() }, "Today"),
+        // From a template, offer a one-click fork into today when today has no schedule yet.
+        a.mode === "template" && sched && s.todayExists === false
+          ? m(
+              "button",
+              { onclick: () => forkTemplateToToday(vnode, sched.id) },
+              "Fork to today"
+            )
+          : null,
         m(".spacer-h"),
         zoomControls(vnode, !!sched),
         m(".toolbar-sep"),
@@ -735,8 +703,20 @@ function renderSpecific(vnode, self) {
   ];
 }
 
-// "Today" button: pure navigation; lands on the empty state when today has no override or template.
+// "Today" button: pure navigation; lands on the empty state when today has no schedule.
 function goToToday() {
+  m.route.set("/today");
+}
+
+// Fork the current template into today's daily schedule, then jump to the live today view.
+async function forkTemplateToToday(vnode, templateId) {
+  try {
+    await api.forkTemplate(todayDateString(), templateId);
+  } catch (e) {
+    console.error("Failed to fork template:", e);
+    return;
+  }
+  vnode.state.todayExists = true;
   m.route.set("/today");
 }
 
@@ -773,18 +753,7 @@ function shiftDateYmd(s, delta) {
   );
 }
 
-const WEEKDAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
 function prospectiveTitle(a) {
-  if (a.mode === "weekday") return WEEKDAY_NAMES[a.weekday];
   if (a.mode === "date") return a.date;
   return "(unknown)";
 }
@@ -1003,6 +972,74 @@ function addItemButton({ onclick, disabled }) {
     m("span.label", "Add item")
   );
 }
+
+// "Fork template" split button: opens a menu of saved template names, fetched lazily on first open.
+const ForkTemplateMenu = {
+  oninit(vnode) {
+    vnode.state.open = false;
+    vnode.state.templates = null;
+  },
+  // Close on any pointer-down outside the menu so clicking elsewhere dismisses it without picking a template.
+  oncreate(vnode) {
+    vnode.state._onDocDown = (e) => {
+      if (!vnode.state.open) return;
+      if (vnode.dom && vnode.dom.contains(e.target)) return;
+      vnode.state.open = false;
+      m.redraw();
+    };
+    document.addEventListener("mousedown", vnode.state._onDocDown);
+  },
+  onremove(vnode) {
+    if (vnode.state._onDocDown)
+      document.removeEventListener("mousedown", vnode.state._onDocDown);
+  },
+  load(vnode) {
+    api.listTemplates().then(
+      (rows) => {
+        vnode.state.templates = rows || [];
+        m.redraw();
+      },
+      () => {
+        vnode.state.templates = [];
+        m.redraw();
+      }
+    );
+  },
+  view(vnode) {
+    const s = vnode.state;
+    const items =
+      s.templates == null
+        ? [m("button", { disabled: true }, "Loading…")]
+        : s.templates.length === 0
+          ? [m("button", { disabled: true }, "No templates")]
+          : s.templates.map((t) =>
+              m(
+                "button",
+                {
+                  onclick: () => {
+                    s.open = false;
+                    vnode.attrs.onFork(t.id);
+                  },
+                },
+                t.name || "(unnamed)"
+              )
+            );
+    return m(".menu", [
+      m(
+        "button.primary",
+        {
+          onclick: () => {
+            s.open = !s.open;
+            if (s.open && s.templates == null) this.load(vnode);
+          },
+        },
+        m("span.icon.icon-plus"),
+        m("span.label", "Fork template")
+      ),
+      s.open ? m(".menu-items", items) : null,
+    ]);
+  },
+};
 
 // Compact span like "1h 50m" / "1h" / "50m" for the inline range display; floors at "0m".
 function fmtRange(min) {
@@ -1979,9 +2016,9 @@ async function doRun(vnode, self, kind) {
 
 // Open the popup against a fresh placeholder draft; the view splices it via solveInsertion each render, commit POSTs insertItemAtomic.
 function addItemToday(vnode, _self) {
-  // The toolbar button is grayed without an editable override, so this runs only then; bail defensively otherwise.
+  // The toolbar button is grayed unless today's own schedule is editable, so this runs only then; bail defensively otherwise.
   const day = vnode.state.day;
-  if (!day || !day.schedule || day.source !== "date_override") {
+  if (!day || !day.schedule || day.date !== todayDateString()) {
     return;
   }
   openPlaceholder(vnode, day.schedule.id);
@@ -2090,72 +2127,24 @@ function canAddProbe(sched, items, cursorMin) {
   return result.conflict == null;
 }
 
-// Empty state for weekday/date views: a message plus Create, with Fork only in date mode when a template exists.
+// Date mode only (templates always have a schedule): create a blank day or fork a saved template into it.
 function renderSpecificEmptyState(vnode, self, a) {
-  if (a.mode === "weekday") {
-    return m(
-      ".empty-state",
-      m("p.empty-state-msg", "No template for this day"),
-      m(
-        ".empty-state-actions",
-        m(
-          "button.primary",
-          { onclick: () => createSpecificSchedule(vnode, self) },
-          m("span.icon.icon-plus"),
-          m("span.label", "Create new template")
-        )
-      )
-    );
-  }
-  const wdName =
-    WEEKDAY_NAMES[weekdayMondayBasedFromDate(parseLocalYmdInline(a.date))];
-  const hasTemplate = !!vnode.state.weekdayTemplateForDate;
   return m(
     ".empty-state",
     m("p.empty-state-msg", "No schedule for this day"),
     m(".empty-state-actions", [
       m(
         "button.primary",
-        { onclick: () => createSpecificSchedule(vnode, self) },
+        { onclick: () => createDailySchedule(vnode, self, a.date) },
         m("span.icon.icon-plus"),
         m("span.label", "Create new schedule")
       ),
-      hasTemplate
-        ? m(
-            "button.primary",
-            { onclick: () => forkSpecificFromTemplate(vnode, self) },
-            m("span.icon.icon-plus"),
-            m("span.label", `Fork the ${wdName} template`)
-          )
-        : null,
+      m(ForkTemplateMenu, {
+        onFork: (templateId) =>
+          forkDayFromTemplate(vnode, self, a.date, templateId),
+      }),
     ])
   );
-}
-
-// Create a blank weekday/date schedule; both create endpoints are idempotent, so a double-click during reload is safe.
-async function createSpecificSchedule(vnode, self) {
-  const a = vnode.attrs;
-  try {
-    if (a.mode === "weekday") await api.createWeekdayTemplate(a.weekday);
-    else await api.createOverride(a.date);
-  } catch (e) {
-    console.error("Failed to create schedule:", e);
-    return;
-  }
-  await self.reload(vnode);
-}
-
-// Date-mode only: fork the weekday template into a date override. forkWeekdayTemplate falls back to a blank create when none.
-async function forkSpecificFromTemplate(vnode, self) {
-  const a = vnode.attrs;
-  if (a.mode !== "date") return;
-  try {
-    await api.forkWeekdayTemplate(a.date);
-  } catch (e) {
-    console.error("Failed to fork template:", e);
-    return;
-  }
-  await self.reload(vnode);
 }
 
 // =====================================================================

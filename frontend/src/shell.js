@@ -13,10 +13,10 @@ export const Shell = {
     const route = m.route.get() || "/today";
     const matchPrefix = (prefix) =>
       route === prefix || route.startsWith(prefix + "/");
-    // The Schedule tab spans three prefixes (`/today`, `/weekday`, `/date`), so its active state ORs all three.
+    // The Schedule tab spans three prefixes (`/today`, `/template`, `/date`), so its active state ORs all three.
     const scheduleActive =
       matchPrefix("/today") ||
-      matchPrefix("/weekday") ||
+      matchPrefix("/template") ||
       matchPrefix("/date");
 
     const username = user && user.username ? user.username : "";

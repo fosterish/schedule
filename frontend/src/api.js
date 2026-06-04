@@ -162,29 +162,22 @@ export const api = {
         : {}),
     }),
 
-  // calendar
-  getWeekdays: () => request("GET", "/api/calendar/weekdays"),
-  putWeekdays: (bindings) =>
-    request("PUT", "/api/calendar/weekdays", { bindings }),
-  getWeekday: (w) => request("GET", `/api/calendar/weekdays/${w}`),
-  createWeekdayTemplate: (w) =>
-    request("POST", `/api/calendar/weekdays/${w}/create`),
-  getOverride: (date) => request("GET", `/api/calendar/overrides/${date}`),
-  getOverridesRange: (start, end) =>
+  // calendar: schedule templates (day-agnostic)
+  listTemplates: () => request("GET", "/api/calendar/templates"),
+  createTemplate: () => request("POST", "/api/calendar/templates"),
+
+  // calendar: daily schedules (one per date)
+  getDay: (date) => request("GET", `/api/calendar/days/${date}`),
+  getDaysRange: (start, end) =>
     request(
       "GET",
-      `/api/calendar/overrides?start=${encodeURIComponent(
+      `/api/calendar/days?start=${encodeURIComponent(
         start
       )}&end=${encodeURIComponent(end)}`
     ),
-  putOverride: (date, schedule_id) =>
-    request("POST", `/api/calendar/overrides/${date}`, { schedule_id }),
-  deleteOverride: (date) =>
-    request("DELETE", `/api/calendar/overrides/${date}`),
-  createOverride: (date) =>
-    request("POST", `/api/calendar/overrides/${date}/create`),
-  forkWeekdayTemplate: (date) =>
-    request("POST", `/api/calendar/overrides/${date}/fork-weekday-template`),
+  createDay: (date) => request("POST", `/api/calendar/days/${date}/create`),
+  forkTemplate: (date, templateId) =>
+    request("POST", `/api/calendar/days/${date}/fork/${templateId}`),
 
   // day
   day: (date) => {

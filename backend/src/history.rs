@@ -28,29 +28,28 @@ pub enum SubOp {
         id: i64,
         fields: serde_json::Value,
     },
-    InsertOverride {
+    InsertDailySchedule {
         date: String,
         schedule_id: i64,
     },
-    DeleteOverride {
+    DeleteDailySchedule {
         date: String,
     },
     /// Re-insert a schedule with its original id so bindings and items reattach on undo; missing keys use defaults.
     InsertSchedule {
         row: serde_json::Value,
     },
-    /// Delete a schedule; pair with `DeleteWeekdayBinding` since the weekday FK's ON DELETE SET NULL leaves a stale row.
+    /// Delete a schedule; its daily/template bindings cascade, so pair with the matching Insert ops for undo.
     DeleteSchedule {
         id: i64,
     },
-    /// Upsert a weekday-template binding (ON CONFLICT replaces); restores both deleted and previously-NULL bindings.
-    InsertWeekdayBinding {
-        weekday: i64,
+    /// Mark a schedule as a template (ON CONFLICT no-op); restores a template binding on undo.
+    InsertTemplate {
         schedule_id: i64,
     },
-    /// Delete a weekday-template binding row outright (not SET NULL); pair with `DeleteSchedule` to wipe both.
-    DeleteWeekdayBinding {
-        weekday: i64,
+    /// Drop a template binding row; pair with `DeleteSchedule` to wipe both.
+    DeleteTemplate {
+        schedule_id: i64,
     },
 
     // ----- project context -----
@@ -508,14 +507,14 @@ pub async fn apply_ops(
                         .await?;
                 }
             }
-            SubOp::InsertOverride { date, schedule_id } => {
+            SubOp::InsertDailySchedule { date, schedule_id } => {
                 let d = time::Date::parse(
                     date,
                     time::macros::format_description!("[year]-[month]-[day]"),
                 )
                 .map_err(|_| AppError::bad_request("bad date"))?;
                 sqlx::query(
-                    "INSERT OR REPLACE INTO calendar_date_overrides
+                    "INSERT OR REPLACE INTO daily_schedules
                      (user_id, date, schedule_id) VALUES (?, ?, ?)",
                 )
                 .bind(user_id)
@@ -524,13 +523,13 @@ pub async fn apply_ops(
                 .execute(&mut **tx)
                 .await?;
             }
-            SubOp::DeleteOverride { date } => {
+            SubOp::DeleteDailySchedule { date } => {
                 let d = time::Date::parse(
                     date,
                     time::macros::format_description!("[year]-[month]-[day]"),
                 )
                 .map_err(|_| AppError::bad_request("bad date"))?;
-                sqlx::query("DELETE FROM calendar_date_overrides WHERE user_id = ? AND date = ?")
+                sqlx::query("DELETE FROM daily_schedules WHERE user_id = ? AND date = ?")
                     .bind(user_id)
                     .bind(d)
                     .execute(&mut **tx)
@@ -574,30 +573,24 @@ pub async fn apply_ops(
                     return Err(AppError::not_found("schedule"));
                 }
             }
-            SubOp::InsertWeekdayBinding {
-                weekday,
-                schedule_id,
-            } => {
-                // Upsert: ON CONFLICT DO UPDATE restores both deleted bindings and rows nulled by the cascade.
+            SubOp::InsertTemplate { schedule_id } => {
+                // INSERT OR IGNORE so re-asserting an existing template binding is a no-op.
                 sqlx::query(
-                    "INSERT INTO calendar_weekday_bindings
-                       (user_id, weekday, schedule_id) VALUES (?, ?, ?)
-                     ON CONFLICT(user_id, weekday) DO UPDATE
-                       SET schedule_id = excluded.schedule_id",
+                    "INSERT OR IGNORE INTO schedule_templates
+                       (user_id, schedule_id) VALUES (?, ?)",
                 )
                 .bind(user_id)
-                .bind(*weekday)
                 .bind(*schedule_id)
                 .execute(&mut **tx)
                 .await?;
             }
-            SubOp::DeleteWeekdayBinding { weekday } => {
+            SubOp::DeleteTemplate { schedule_id } => {
                 sqlx::query(
-                    "DELETE FROM calendar_weekday_bindings
-                       WHERE user_id = ? AND weekday = ?",
+                    "DELETE FROM schedule_templates
+                       WHERE user_id = ? AND schedule_id = ?",
                 )
                 .bind(user_id)
-                .bind(*weekday)
+                .bind(*schedule_id)
                 .execute(&mut **tx)
                 .await?;
             }
@@ -1669,29 +1662,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn create_weekday_template_schedule_round_trip() {
-        // One history entry inserts the schedule and its weekday binding; undo nukes both, redo restores both.
+    async fn create_template_schedule_round_trip() {
+        // One history entry inserts the schedule and its template binding; undo nukes both, redo restores both.
         let pool = setup_pool().await;
         let user_id = seed_user(&pool).await;
 
         let mut tx = pool.begin().await.unwrap();
         let (sid,): (i64,) = sqlx::query_as(
             "INSERT INTO schedules (user_id, name, start_min, end_min)
-             VALUES (?, 'Monday template', 480, 1320) RETURNING id",
+             VALUES (?, 'New schedule template', 480, 1320) RETURNING id",
         )
         .bind(user_id)
         .fetch_one(&mut *tx)
         .await
         .unwrap();
-        sqlx::query(
-            "INSERT INTO calendar_weekday_bindings (user_id, weekday, schedule_id)
-             VALUES (?, 0, ?)",
-        )
-        .bind(user_id)
-        .bind(sid)
-        .execute(&mut *tx)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO schedule_templates (user_id, schedule_id) VALUES (?, ?)")
+            .bind(user_id)
+            .bind(sid)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
         let snap = snapshot_schedule(&mut tx, user_id, sid)
             .await
             .unwrap()
@@ -1700,16 +1690,13 @@ mod tests {
             &mut tx,
             user_id,
             CTX_SCHEDULE,
-            "create_weekday_template",
+            "create_template",
             &[
                 SubOp::InsertSchedule { row: snap.clone() },
-                SubOp::InsertWeekdayBinding {
-                    weekday: 0,
-                    schedule_id: sid,
-                },
+                SubOp::InsertTemplate { schedule_id: sid },
             ],
             &[
-                SubOp::DeleteWeekdayBinding { weekday: 0 },
+                SubOp::DeleteTemplate { schedule_id: sid },
                 SubOp::DeleteSchedule { id: sid },
             ],
         )
@@ -1728,8 +1715,7 @@ mod tests {
         assert_eq!(
             count(
                 &pool,
-                "SELECT COUNT(*) FROM calendar_weekday_bindings
-                  WHERE user_id = ? AND schedule_id IS NOT NULL",
+                "SELECT COUNT(*) FROM schedule_templates WHERE user_id = ?",
                 user_id,
             )
             .await,
@@ -1761,7 +1747,7 @@ mod tests {
         assert_eq!(
             count(
                 &pool,
-                "SELECT COUNT(*) FROM calendar_weekday_bindings WHERE user_id = ?",
+                "SELECT COUNT(*) FROM schedule_templates WHERE user_id = ?",
                 user_id,
             )
             .await,
@@ -1788,24 +1774,21 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(back_id, sid, "redo restored the original schedule id");
-        let (binding_sid,): (Option<i64>,) = sqlx::query_as(
-            "SELECT schedule_id FROM calendar_weekday_bindings
-              WHERE user_id = ? AND weekday = 0",
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (template_sid,): (i64,) =
+            sqlx::query_as("SELECT schedule_id FROM schedule_templates WHERE user_id = ?")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(
-            binding_sid,
-            Some(sid),
-            "weekday binding points at the restored schedule"
+            template_sid, sid,
+            "template binding points at the restored schedule"
         );
     }
 
     #[tokio::test]
-    async fn fork_template_into_override_round_trip() {
-        // Clone a template's items into an override schedule plus date binding in one entry; undo keeps original item ids.
+    async fn fork_template_into_daily_round_trip() {
+        // Clone a template's items into a daily schedule plus date binding in one entry; undo keeps original item ids.
         let pool = setup_pool().await;
         let user_id = seed_user(&pool).await;
 
@@ -1841,7 +1824,7 @@ mod tests {
         .await
         .unwrap();
         sqlx::query(
-            "INSERT INTO calendar_date_overrides (user_id, date, schedule_id)
+            "INSERT INTO daily_schedules (user_id, date, schedule_id)
              VALUES (?, '2026-05-25', ?)",
         )
         .bind(user_id)
@@ -1850,7 +1833,7 @@ mod tests {
         .await
         .unwrap();
 
-        // Snapshot in forward-replay order (schedule, items, override); the backward path mirrors it.
+        // Snapshot in forward-replay order (schedule, items, daily binding); the backward path mirrors it.
         let schedule_snap = snapshot_schedule(&mut tx, user_id, oid)
             .await
             .unwrap()
@@ -1867,7 +1850,7 @@ mod tests {
             &mut tx,
             user_id,
             CTX_SCHEDULE,
-            "fork_weekday_template",
+            "fork_template",
             &[
                 SubOp::InsertSchedule {
                     row: schedule_snap.clone(),
@@ -1878,13 +1861,13 @@ mod tests {
                 SubOp::InsertItem {
                     row: snap_b.clone(),
                 },
-                SubOp::InsertOverride {
+                SubOp::InsertDailySchedule {
                     date: "2026-05-25".to_string(),
                     schedule_id: oid,
                 },
             ],
             &[
-                SubOp::DeleteOverride {
+                SubOp::DeleteDailySchedule {
                     date: "2026-05-25".to_string(),
                 },
                 SubOp::DeleteSchedule { id: oid },
@@ -1894,7 +1877,7 @@ mod tests {
         .unwrap();
         tx.commit().await.unwrap();
 
-        // Sanity: source template still has its items, override has two clones.
+        // Sanity: source template still has its items, daily schedule has two clones.
         let n_template_items: (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?")
                 .bind(template_id)
@@ -1904,13 +1887,13 @@ mod tests {
         assert_eq!(n_template_items.0, 2, "template items unaffected by fork");
         assert!(template_item_a != clone_a && template_item_b != clone_b);
 
-        // Undo runs DeleteOverride then DeleteSchedule; the schedule cascade nukes the cloned items.
+        // Undo runs DeleteDailySchedule then DeleteSchedule; the schedule cascade nukes the cloned items.
         let mut tx = pool.begin().await.unwrap();
         apply_ops(
             &mut tx,
             user_id,
             &[
-                SubOp::DeleteOverride {
+                SubOp::DeleteDailySchedule {
                     date: "2026-05-25".to_string(),
                 },
                 SubOp::DeleteSchedule { id: oid },
@@ -1928,17 +1911,17 @@ mod tests {
             )
             .await,
             0,
-            "override schedule gone after undo",
+            "daily schedule gone after undo",
         );
         assert_eq!(
             count(
                 &pool,
-                "SELECT COUNT(*) FROM calendar_date_overrides WHERE user_id = ?",
+                "SELECT COUNT(*) FROM daily_schedules WHERE user_id = ?",
                 user_id,
             )
             .await,
             0,
-            "override binding gone after undo",
+            "daily binding gone after undo",
         );
         let n_template_items: (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM schedule_items WHERE schedule_id = ?")
@@ -1951,7 +1934,7 @@ mod tests {
             "template items still intact after undo"
         );
 
-        // Redo: forward = Insert schedule, items, override.
+        // Redo: forward = Insert schedule, items, daily binding.
         let mut tx = pool.begin().await.unwrap();
         apply_ops(
             &mut tx,
@@ -1960,7 +1943,7 @@ mod tests {
                 SubOp::InsertSchedule { row: schedule_snap },
                 SubOp::InsertItem { row: snap_a },
                 SubOp::InsertItem { row: snap_b },
-                SubOp::InsertOverride {
+                SubOp::InsertDailySchedule {
                     date: "2026-05-25".to_string(),
                     schedule_id: oid,
                 },
@@ -1976,7 +1959,7 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(back_id, oid, "redo restored the override id");
+        assert_eq!(back_id, oid, "redo restored the daily schedule id");
         let item_ids: Vec<(i64,)> =
             sqlx::query_as("SELECT id FROM schedule_items WHERE schedule_id = ? ORDER BY id ASC")
                 .bind(oid)
@@ -1990,7 +1973,7 @@ mod tests {
             ids
         );
         let (bound_sid,): (Option<i64>,) = sqlx::query_as(
-            "SELECT schedule_id FROM calendar_date_overrides
+            "SELECT schedule_id FROM daily_schedules
               WHERE user_id = ? AND date = '2026-05-25'",
         )
         .bind(user_id)
@@ -2001,15 +1984,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_override_schedule_with_items_round_trip() {
-        // Delete a date-override schedule: forward removes binding + schedule (items cascade); backward restores schedule, items, binding.
+    async fn delete_daily_schedule_with_items_round_trip() {
+        // Delete a daily schedule: forward removes binding + schedule (items cascade); backward restores schedule, items, binding.
         let pool = setup_pool().await;
         let user_id = seed_user(&pool).await;
-        let sid = seed_schedule(&pool, user_id, "override").await;
+        let sid = seed_schedule(&pool, user_id, "daily").await;
         let i1 = seed_item(&pool, sid, 1.0, "A").await;
         let i2 = seed_item(&pool, sid, 2.0, "B").await;
         sqlx::query(
-            "INSERT INTO calendar_date_overrides (user_id, date, schedule_id)
+            "INSERT INTO daily_schedules (user_id, date, schedule_id)
              VALUES (?, '2026-06-01', ?)",
         )
         .bind(user_id)
@@ -2027,7 +2010,7 @@ mod tests {
         let snap_i2 = snapshot_item(&mut tx, user_id, i2).await.unwrap().unwrap();
 
         let forward = vec![
-            SubOp::DeleteOverride {
+            SubOp::DeleteDailySchedule {
                 date: "2026-06-01".to_string(),
             },
             SubOp::DeleteSchedule { id: sid },
@@ -2042,7 +2025,7 @@ mod tests {
             SubOp::InsertItem {
                 row: snap_i2.clone(),
             },
-            SubOp::InsertOverride {
+            SubOp::InsertDailySchedule {
                 date: "2026-06-01".to_string(),
                 schedule_id: sid,
             },
@@ -2073,12 +2056,12 @@ mod tests {
         assert_eq!(
             count(
                 &pool,
-                "SELECT COUNT(*) FROM calendar_date_overrides WHERE user_id = ?",
+                "SELECT COUNT(*) FROM daily_schedules WHERE user_id = ?",
                 user_id,
             )
             .await,
             0,
-            "override row removed",
+            "daily row removed",
         );
 
         // Undo restores everything with original ids.
@@ -2104,7 +2087,7 @@ mod tests {
             ids
         );
         let (bound_sid,): (Option<i64>,) = sqlx::query_as(
-            "SELECT schedule_id FROM calendar_date_overrides
+            "SELECT schedule_id FROM daily_schedules
               WHERE user_id = ? AND date = '2026-06-01'",
         )
         .bind(user_id)
@@ -2129,7 +2112,7 @@ mod tests {
         assert_eq!(
             count(
                 &pool,
-                "SELECT COUNT(*) FROM calendar_date_overrides WHERE user_id = ?",
+                "SELECT COUNT(*) FROM daily_schedules WHERE user_id = ?",
                 user_id,
             )
             .await,
@@ -2138,21 +2121,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_weekday_template_schedule_round_trip() {
-        // Like the override-delete test, but `DeleteWeekdayBinding` wipes the binding row instead of leaving an ON DELETE SET NULL stray.
+    async fn delete_template_schedule_round_trip() {
+        // Like the daily-delete test, but `DeleteTemplate` wipes the template binding row.
         let pool = setup_pool().await;
         let user_id = seed_user(&pool).await;
-        let sid = seed_schedule(&pool, user_id, "Tuesday template").await;
+        let sid = seed_schedule(&pool, user_id, "Standup template").await;
         let i1 = seed_item(&pool, sid, 1.0, "Standup").await;
-        sqlx::query(
-            "INSERT INTO calendar_weekday_bindings (user_id, weekday, schedule_id)
-             VALUES (?, 1, ?)",
-        )
-        .bind(user_id)
-        .bind(sid)
-        .execute(&pool)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO schedule_templates (user_id, schedule_id) VALUES (?, ?)")
+            .bind(user_id)
+            .bind(sid)
+            .execute(&pool)
+            .await
+            .unwrap();
 
         let mut tx = pool.begin().await.unwrap();
         let schedule_snap = snapshot_schedule(&mut tx, user_id, sid)
@@ -2161,16 +2141,13 @@ mod tests {
             .unwrap();
         let snap_i1 = snapshot_item(&mut tx, user_id, i1).await.unwrap().unwrap();
         let forward = vec![
-            SubOp::DeleteWeekdayBinding { weekday: 1 },
+            SubOp::DeleteTemplate { schedule_id: sid },
             SubOp::DeleteSchedule { id: sid },
         ];
         let backward = vec![
             SubOp::InsertSchedule { row: schedule_snap },
             SubOp::InsertItem { row: snap_i1 },
-            SubOp::InsertWeekdayBinding {
-                weekday: 1,
-                schedule_id: sid,
-            },
+            SubOp::InsertTemplate { schedule_id: sid },
         ];
         apply_ops(&mut tx, user_id, &forward).await.unwrap();
         record_history(
@@ -2197,12 +2174,12 @@ mod tests {
         assert_eq!(
             count(
                 &pool,
-                "SELECT COUNT(*) FROM calendar_weekday_bindings WHERE user_id = ?",
+                "SELECT COUNT(*) FROM schedule_templates WHERE user_id = ?",
                 user_id,
             )
             .await,
             0,
-            "binding row gone after delete",
+            "template binding gone after delete",
         );
 
         // Undo: schedule + item + binding all return.
@@ -2222,15 +2199,13 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(item_back, i1);
-        let (bound_sid,): (Option<i64>,) = sqlx::query_as(
-            "SELECT schedule_id FROM calendar_weekday_bindings
-              WHERE user_id = ? AND weekday = 1",
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        assert_eq!(bound_sid, Some(sid));
+        let (bound_sid,): (i64,) =
+            sqlx::query_as("SELECT schedule_id FROM schedule_templates WHERE user_id = ?")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(bound_sid, sid);
 
         // Redo wipes again.
         let mut tx = pool.begin().await.unwrap();

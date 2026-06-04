@@ -1,6 +1,6 @@
 import m from "mithril";
 import { api, onApiMutation } from "../api.js";
-import { Popup } from "../components/popup.js";
+import { trashIcon } from "../components/popup.js";
 import { DEFAULT_ITEM_COLOR, paletteColor } from "../palette.js";
 // URL fragments whose mutations can change calendar data; undo/redo included since either can replay them.
 function calendarAffected(url) {
@@ -20,16 +20,6 @@ function isCalendarActive() {
   return (m.route.get() || "") === "/calendar";
 }
 
-const WEEKDAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
 function ymd(date) {
   const y = date.getFullYear();
   const m_ = String(date.getMonth() + 1).padStart(2, "0");
@@ -37,19 +27,8 @@ function ymd(date) {
   return `${y}-${m_}-${d}`;
 }
 
-// Parse `YYYY-MM-DD` as local time; `new Date(str)` treats it as UTC midnight and drifts a day west of UTC.
-function parseLocalYmd(s) {
-  const [y, mo, d] = s.split("-").map(Number);
-  return new Date(y, mo - 1, d);
-}
-
 function firstOfMonth(y, m) {
   return new Date(y, m, 1);
-}
-
-function weekdayMondayBased(d) {
-  // Convert JS 0=Sun weekday to Monday-based 0=Mon..6=Sun for backend lookups.
-  return (d.getDay() + 6) % 7;
 }
 
 function weekdaySundayBased(d) {
@@ -66,10 +45,10 @@ export const Calendar = {
     const now = new Date();
     vnode.state.y = now.getFullYear();
     vnode.state.m = now.getMonth(); // 0-indexed
-    vnode.state.weekdays = null; // map of weekday(0..6) -> binding
-    vnode.state.overrides = {}; // date string -> override row
+    vnode.state.templates = []; // schedule templates (day-agnostic)
+    vnode.state.days = {}; // date string -> daily-schedule row
     vnode.state.layoutCache = {}; // schedule_id -> layout
-    vnode.state.popupDate = null; // date string while popup open
+    vnode.state.templatesExpanded = false;
     vnode.state.loading = false;
     this.reload(vnode);
     // Calendar stays mounted across tabs; edits while hidden just mark data stale to avoid refetching for nobody.
@@ -95,7 +74,7 @@ export const Calendar = {
     }
   },
   reload(vnode) {
-    // Grid spans 6 weeks (42 cells) from the Sunday on/before the 1st; overrides and layouts each fetch once.
+    // Grid spans 6 weeks (42 cells) from the Sunday on/before the 1st; days and templates each fetch once.
     vnode.state.loading = true;
     const y = vnode.state.y;
     const month = vnode.state.m;
@@ -105,25 +84,25 @@ export const Calendar = {
     const start = ymd(firstCell);
     const end = ymd(lastCell);
 
-    const wdPromise = api.getWeekdays().then((rows) => {
-      const map = {};
-      for (const r of rows) map[r.weekday] = r;
-      vnode.state.weekdays = map;
+    const tplPromise = api.listTemplates().then((rows) => {
+      vnode.state.templates = rows || [];
       m.redraw();
-    }, () => {});
+    }, () => {
+      vnode.state.templates = [];
+    });
 
     // Project color/name comes from the layout endpoint's resolved `payload`, so the calendar doesn't cache `listProjects`.
 
-    const ovPromise = api.getOverridesRange(start, end).then((rows) => {
+    const daysPromise = api.getDaysRange(start, end).then((rows) => {
       const map = {};
       for (const r of rows || []) if (r && r.schedule) map[r.date] = r;
-      vnode.state.overrides = map;
+      vnode.state.days = map;
       m.redraw();
     }, () => {
-      vnode.state.overrides = {};
+      vnode.state.days = {};
     });
 
-    Promise.all([wdPromise, ovPromise]).then(() => {
+    Promise.all([tplPromise, daysPromise]).then(() => {
       vnode.state.loading = false;
       this.loadLayouts(vnode);
       m.redraw();
@@ -137,12 +116,9 @@ export const Calendar = {
       seen.add(sched.id);
       if (!vnode.state.layoutCache[sched.id]) need.push(sched.id);
     };
-    if (vnode.state.weekdays) {
-      for (const k of Object.keys(vnode.state.weekdays))
-        collect(vnode.state.weekdays[k].schedule);
-    }
-    for (const k of Object.keys(vnode.state.overrides))
-      collect(vnode.state.overrides[k].schedule);
+    for (const t of vnode.state.templates) collect(t);
+    for (const k of Object.keys(vnode.state.days))
+      collect(vnode.state.days[k].schedule);
     if (need.length === 0) return;
     api.scheduleLayouts(need).then((map) => {
       for (const k of Object.keys(map || {})) {
@@ -150,6 +126,24 @@ export const Calendar = {
       }
       m.redraw();
     });
+  },
+  // Create a fresh template and jump straight to the Schedule tab to edit it.
+  async createTemplate() {
+    try {
+      const sched = await api.createTemplate();
+      if (sched && sched.id != null) m.route.set("/template/" + sched.id);
+    } catch (e) {
+      console.error("Failed to create template:", e);
+    }
+  },
+  async deleteTemplate(vnode, id) {
+    try {
+      await api.deleteSchedule(id);
+    } catch (e) {
+      console.error("Failed to delete template:", e);
+      return;
+    }
+    this.reload(vnode);
   },
   view(vnode) {
     const y = vnode.state.y;
@@ -160,7 +154,6 @@ export const Calendar = {
     });
     const first = firstOfMonth(y, month);
     const startCol = weekdaySundayBased(first);
-    const numDays = daysInMonth(y, month);
     const today = ymd(new Date());
 
     // Build 6 weeks (42 cells) starting from the Sunday before the 1st.
@@ -225,6 +218,7 @@ export const Calendar = {
         ]),
       ]),
       m(".tab-scroll", [
+        this.templatesAccordion(vnode),
         m(
           ".calendar-grid-head",
           ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) =>
@@ -236,15 +230,8 @@ export const Calendar = {
           cells.map((d) => {
             const ds = ymd(d);
             const inMonth = d.getMonth() === month;
-            const wd = weekdayMondayBased(d);
-            const override = vnode.state.overrides[ds];
-            const weekday = vnode.state.weekdays
-              ? vnode.state.weekdays[wd]
-              : null;
-            const sched =
-              (override && override.schedule) ||
-              (weekday && weekday.schedule) ||
-              null;
+            const day = vnode.state.days[ds];
+            const sched = (day && day.schedule) || null;
             const isToday = ds === today;
             return m(
               ".calendar-cell",
@@ -253,13 +240,13 @@ export const Calendar = {
                 class: [
                   inMonth ? "in" : "out",
                   isToday ? "today" : "",
-                  override ? "has-override" : "",
+                  sched ? "has-schedule" : "",
                 ]
                   .filter(Boolean)
                   .join(" "),
-                onclick: () => {
-                  vnode.state.popupDate = ds;
-                },
+                // Cells are pure navigation; today routes to the live view, other days to their date view.
+                onclick: () =>
+                  m.route.set(isToday ? "/today" : "/date/" + ds),
               },
               [
                 m(".calendar-cell-num", String(d.getDate())),
@@ -271,8 +258,6 @@ export const Calendar = {
                         schedule: sched,
                         layout: vnode.state.layoutCache[sched.id],
                         height: 28,
-                        // Dim the mini-timeline when the cell shows the weekday template rather than a date override.
-                        template: !override,
                       })
                     : null
                 ),
@@ -281,23 +266,71 @@ export const Calendar = {
           })
         ),
       ]),
-      vnode.state.popupDate
-        ? m(DayPopup, {
-            date: vnode.state.popupDate,
-            weekday: vnode.state.weekdays
-              ? vnode.state.weekdays[
-                  weekdayMondayBased(parseLocalYmd(vnode.state.popupDate))
-                ]
-              : null,
-            override: vnode.state.overrides[vnode.state.popupDate],
-            layoutCache: vnode.state.layoutCache,
-            onclose: () => {
-              vnode.state.popupDate = null;
-              this.reload(vnode);
-            },
-          })
-        : null,
     ];
+  },
+  templatesAccordion(vnode) {
+    const expanded = vnode.state.templatesExpanded;
+    const toggle = () => {
+      vnode.state.templatesExpanded = !vnode.state.templatesExpanded;
+    };
+    return m(".field.calendar-templates", [
+      m(
+        ".field-label.collapsible-label",
+        {
+          onclick: toggle,
+          role: "button",
+          tabindex: 0,
+          "aria-expanded": expanded ? "true" : "false",
+          onkeydown: (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggle();
+            }
+          },
+        },
+        m("span", "Schedule Templates"),
+        m("span.icon.icon-chevron-right" + (expanded ? ".rotated" : ""))
+      ),
+      expanded
+        ? m(".dep-list", [
+            m(
+              ".dep-rows",
+              vnode.state.templates.map((t) =>
+                m(".template-row", { key: t.id }, [
+                  m(
+                    "button.template-name",
+                    {
+                      type: "button",
+                      onclick: () => m.route.set("/template/" + t.id),
+                    },
+                    t.name || "(unnamed)"
+                  ),
+                  m(
+                    "button.icon-btn.dep-remove",
+                    {
+                      type: "button",
+                      title: "Delete template",
+                      "aria-label": "Delete template",
+                      onclick: () => this.deleteTemplate(vnode, t.id),
+                    },
+                    trashIcon()
+                  ),
+                ])
+              )
+            ),
+            m(
+              "button.icon-btn.dep-add",
+              {
+                type: "button",
+                title: "New schedule template",
+                "aria-label": "New schedule template",
+                onclick: () => this.createTemplate(),
+              },
+              m("span.icon.icon-plus")
+            ),
+          ])
+        : null,
+    ]);
   },
 };
 
@@ -305,25 +338,20 @@ const MiniTimeline = {
   view(vnode) {
     const sched = vnode.attrs.schedule;
     const layout = vnode.attrs.layout;
-    // Callers pick the height so the component renders compactly in a cell and roomy in the popup.
+    // Callers pick the height so the component renders compactly in a cell and roomy elsewhere.
     const height = vnode.attrs.height;
     const containerStyle = height != null ? `height:${height}px` : "";
-    // `template: true` dims the whole mini-timeline for weekday-template cells; popup cards leave it unset (full opacity).
-    const containerClass = vnode.attrs.template
-      ? ".mini-timeline.mini-timeline--template"
-      : ".mini-timeline";
-    if (!sched)
-      return m(containerClass, { style: containerStyle });
+    if (!sched) return m(".mini-timeline", { style: containerStyle });
     const total = sched.end_min - sched.start_min;
     if (total <= 0)
       return m(
-        containerClass,
+        ".mini-timeline",
         { style: containerStyle },
         m(".muted", { style: "font-size:10px" }, "—")
       );
     const items = layout && layout.items ? layout.items : [];
     return m(
-      containerClass,
+      ".mini-timeline",
       { style: containerStyle },
       items.map((it) => {
         const left = ((it.assigned_start - sched.start_min) / total) * 100;
@@ -357,84 +385,3 @@ function miniBlockColorKey(it) {
   }
   return it.color || DEFAULT_ITEM_COLOR;
 }
-
-const DayPopup = {
-  view(vnode) {
-    const { date, weekday, override, layoutCache, onclose } = vnode.attrs;
-    const dObj = parseLocalYmd(date);
-    const wdIdx = weekdayMondayBased(dObj);
-    const wdName = WEEKDAY_NAMES[wdIdx];
-    const hasOverride = !!(override && override.schedule);
-    const hasTemplate = !!(weekday && weekday.schedule);
-
-    // Both cards are pure navigation; creation is owned by the destination view's empty state.
-    const navigate = (path) => {
-      onclose();
-      m.route.set(path);
-    };
-
-    // Use the local-time YMD helper for the today check; `toISOString()` would shift the date in negative-UTC offsets.
-    const isToday = date === ymd(new Date());
-
-    const openDaySchedule = () => {
-      // On the current date, route to the live `/today` view instead of the historical `/date/<ymd>` view.
-      if (isToday) {
-        navigate("/today");
-      } else {
-        navigate("/date/" + encodeURIComponent(date));
-      }
-    };
-
-    const openWeekdayTemplate = () => {
-      navigate("/weekday/" + wdIdx);
-    };
-
-    const cardBody = (sched, emptyText) =>
-      sched
-        ? m(MiniTimeline, {
-            schedule: sched,
-            layout: layoutCache && layoutCache[sched.id],
-            height: 56,
-          })
-        : m(".day-card-empty", emptyText);
-
-    // Empty-card text is navigation-flavoured ("Go to …"); the cards never create or fork.
-    const dayEmptyText = isToday ? "Go to today" : "Go to this day";
-    const weekdayEmptyText = `Go to the ${wdName} template`;
-
-    return m(
-      Popup,
-      { title: date + " (" + wdName + ")", onclose },
-      m(".day-popup-cards", [
-        m(
-          "button.day-card",
-          { onclick: openDaySchedule, type: "button" },
-          [
-            m(".day-card-label", "Day schedule"),
-            m(
-              ".day-card-body",
-              cardBody(
-                hasOverride ? override.schedule : null,
-                dayEmptyText
-              )
-            ),
-          ]
-        ),
-        m(
-          "button.day-card",
-          { onclick: openWeekdayTemplate, type: "button" },
-          [
-            m(".day-card-label", "Weekday template"),
-            m(
-              ".day-card-body",
-              cardBody(
-                hasTemplate ? weekday.schedule : null,
-                weekdayEmptyText
-              )
-            ),
-          ]
-        ),
-      ])
-    );
-  },
-};

@@ -84,11 +84,11 @@ const App = {
 
 // Returns a sub-route component for a well-formed sub-route, else null so the not-found pane handles malformed ones.
 function pickSubRoute(route) {
-  if (route.startsWith("/weekday/")) {
-    const tail = route.slice("/weekday/".length);
-    if (!/^[0-6]$/.test(tail)) return null;
-    const w = Number(tail);
-    return m(Schedule, { mode: "weekday", weekday: w, key: "weekday-" + w });
+  if (route.startsWith("/template/")) {
+    const tail = route.slice("/template/".length);
+    if (!/^[1-9]\d*$/.test(tail)) return null;
+    const id = Number(tail);
+    return m(Schedule, { mode: "template", scheduleId: id, key: "template-" + id });
   }
   if (route.startsWith("/date/")) {
     const d = route.slice("/date/".length);

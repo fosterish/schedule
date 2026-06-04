@@ -73,7 +73,7 @@ function currentContext() {
   const route = (m.route.get() || "").split("?")[0];
   if (
     route === "/today" ||
-    route.startsWith("/weekday/") ||
+    route.startsWith("/template/") ||
     route.startsWith("/date/")
   ) {
     return "schedule";
