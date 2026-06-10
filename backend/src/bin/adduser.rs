@@ -7,10 +7,10 @@ use schedule::{db, load_env};
 async fn main() -> anyhow::Result<()> {
     load_env();
 
-    let mut args = std::env::args().skip(1);
+    let args = std::env::args().skip(1);
     let mut reset = false;
     let mut username: Option<String> = None;
-    while let Some(a) = args.next() {
+    for a in args {
         if a == "--reset" {
             reset = true;
         } else if username.is_none() {
@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
     let pool = db::connect(&database_url).await?;
     db::migrate(&pool).await?;
 
-    let existing: Option<(i64,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?")
+    let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?")
         .bind(&username)
         .fetch_optional(&pool)
         .await?;
@@ -50,7 +50,9 @@ async fn main() -> anyhow::Result<()> {
             .await?;
         println!("password updated for '{}'.", username);
     } else {
-        sqlx::query("INSERT INTO users (username, password_hash) VALUES (?, ?)")
+        let id = uuid::Uuid::now_v7().to_string();
+        sqlx::query("INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)")
+            .bind(&id)
             .bind(&username)
             .bind(&hash)
             .execute(&pool)

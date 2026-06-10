@@ -1,0 +1,27 @@
+.group {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  font-size: 16px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

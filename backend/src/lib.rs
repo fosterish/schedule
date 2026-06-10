@@ -1,11 +1,11 @@
 pub mod auth;
 pub mod db;
 pub mod error;
-pub mod fractional;
-pub mod history;
 pub mod models;
-pub mod resolve;
+pub mod rev;
 pub mod routes;
+pub mod sync;
+pub mod types;
 
 use std::path::PathBuf;
 use std::sync::Arc;

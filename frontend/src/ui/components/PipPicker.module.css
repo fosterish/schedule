@@ -1,0 +1,19 @@
+.pips {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pip {
+  width: var(--pip-size, 12px);
+  height: var(--pip-size, 12px);
+  padding: 0;
+  background: color-mix(in srgb, var(--muted) 20%, transparent);
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pip:disabled {
+  cursor: default;
+}

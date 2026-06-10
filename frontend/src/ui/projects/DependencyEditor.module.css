@@ -1,0 +1,55 @@
+.deps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: default;
+}
+
+.heading {
+  padding-left: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row .taskField {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Ellipsize the selected task in the closed control; the dropdown options keep
+   their full names. */
+.taskField button > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dir {
+  flex: 0 0 auto;
+}
+
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  height: var(--control-h);
+  padding: 0 10px;
+  font: inherit;
+  color: var(--project-color);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--project-color) 55%, var(--border));
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.add:hover {
+  background: color-mix(in srgb, var(--project-color) 14%, transparent);
+}

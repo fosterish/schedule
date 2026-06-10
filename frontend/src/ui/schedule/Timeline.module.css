@@ -1,0 +1,224 @@
+.wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.scroll {
+  height: 100%;
+  overflow-y: auto;
+  /* Top/bottom inset reserves room for the start/end bound clusters, which sit
+     just outside the schedule's first and last lines. */
+  padding: 32px 8px;
+  touch-action: pan-y;
+}
+
+/* Gutters on each side: hour labels left, media badges right. Lines and the
+   time cursor span both gutters; items sit between them. */
+.timeline {
+  position: relative;
+  --gutter: 52px;
+  margin: 0 var(--gutter);
+  min-height: 200px;
+}
+
+.hourLine {
+  position: absolute;
+  left: calc(-1 * var(--gutter));
+  right: calc(-1 * var(--gutter));
+  border-top: 1px dashed var(--border);
+  pointer-events: none;
+}
+
+.hourLabel {
+  position: absolute;
+  left: 0;
+  top: -8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: var(--bg);
+  /* 8px left inset aligns the digits with the cursor pill's text (1px line +
+     1px border + 6px pad). */
+  padding: 0 6px 0 8px;
+}
+
+/* Time cursor: solid line, color-coded (live red / detached accent), with an
+   HH:MM pill and a reset/hide X. */
+.cursor {
+  position: absolute;
+  left: calc(-1 * var(--gutter));
+  right: calc(-1 * var(--gutter));
+  z-index: 20;
+  pointer-events: none;
+}
+
+.cursorLive {
+  --cursor-color: var(--danger);
+}
+
+.cursorDetached {
+  --cursor-color: var(--accent);
+}
+
+.cursorLine {
+  position: absolute;
+  left: 1px;
+  right: 0;
+  top: 0;
+  border-top: 2px solid var(--cursor-color);
+}
+
+.cursorHit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -7px;
+  height: 14px;
+  pointer-events: auto;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.cursorLabel {
+  position: absolute;
+  left: 1px;
+  top: 0;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cursor-color);
+  background: var(--bg);
+  border: 1px solid var(--cursor-color);
+  border-radius: 999px;
+  padding: 1px 6px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cursorClose {
+  position: absolute;
+  right: 0;
+  top: -10px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 11px;
+  color: var(--cursor-color);
+  background: var(--bg);
+  border: 1px solid var(--cursor-color);
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.cursorClose:hover {
+  color: var(--bg);
+  background: var(--cursor-color);
+}
+
+/* Media badges centered in the right gutter at the target item's midpoint. */
+.mediaBadges {
+  position: absolute;
+  right: -30px;
+  transform: translate(50%, -50%);
+  display: flex;
+  gap: 3px;
+  z-index: 3;
+}
+
+.mediaBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.mediaBadge:hover {
+  color: #f2f2f5;
+  background: var(--accent);
+}
+
+/* Round, backgroundless zoom buttons floating just left of the add button,
+   sharing its vertical center. */
+.zoom {
+  position: absolute;
+  right: 64px;
+  bottom: 16px;
+  /* Above a selected item (z-index 25) and its popover. */
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  gap: 0;
+}
+
+.zoomBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.zoomBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+
+.zoomBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.insert {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  /* Above a selected item (z-index 25), its popover, and the media badges. */
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+/* Wide screens: the "New item" header button replaces the round add button, and
+   the zoom controls anchor to the timeline viewport's upper-right corner. */
+@media (min-width: 641px) {
+  .insert {
+    display: none;
+  }
+
+  .zoom {
+    top: 0;
+    right: 10px;
+    bottom: auto;
+    height: auto;
+  }
+}

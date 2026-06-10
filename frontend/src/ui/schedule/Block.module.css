@@ -1,0 +1,325 @@
+.block {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Pinned bounds shade the item (see bandClasses): free reads dark, pinned
+     light. The band* classes pick the fill; this is the fully-free default. */
+  --band-dark: color-mix(in srgb, var(--block-color) 12%, var(--bg));
+  --band-light: color-mix(in srgb, var(--block-color) 42%, var(--bg));
+  background-color: var(--band-dark);
+  border: 1px solid color-mix(in srgb, var(--block-color) 45%, transparent);
+  border-left: 3px solid var(--block-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  /* A long-press arms a reorder; stop iOS's text-selection callout/magnifier and
+     Android's text selection from hijacking the same gesture. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.bandDark {
+  background-image: none;
+  background-color: var(--band-dark);
+}
+
+.bandLight {
+  background-image: none;
+  background-color: var(--band-light);
+}
+
+/* Lone start pin: light at the fixed top, fading to dark at the free bottom. */
+.bandStartOnly {
+  background-image: linear-gradient(to bottom, var(--band-light), var(--band-dark));
+}
+
+/* Lone end pin: dark at the free top, fading to light at the fixed bottom. */
+.bandEndOnly {
+  background-image: linear-gradient(to bottom, var(--band-dark), var(--band-light));
+}
+
+/* Lone fixed duration: dark at both free ends, light through the middle. */
+.bandDurationOnly {
+  background-image: linear-gradient(to bottom, var(--band-dark) 0%, var(--band-light) 50%, var(--band-dark) 100%);
+}
+
+.selected {
+  /* Above the time cursor (z-index 20); unselected items stay behind it. */
+  z-index: 25;
+  border-color: var(--block-color);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--block-color) 60%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--block-color) 45%, transparent);
+  cursor: default;
+}
+
+/* Once the block is at full size, let content (the color popover) escape its
+   edge instead of being clipped. Withheld during the grow so the editor
+   controls don't spill past a still-short item. */
+.expanded {
+  overflow: visible;
+}
+
+.dragging {
+  /* The ghost floats above every other item, the bound markers, and the cursor. */
+  z-index: 30;
+  opacity: 0.65;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  cursor: grabbing;
+}
+
+/* Collapsed with overflowing content: fade the head's text to transparent at
+   the bottom (not the block, so the border and gradient stay intact). */
+.faded {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
+}
+
+/* Head: title + description, positioned identically whether collapsed or
+   selected so they never shift. The top inset clears the corner time tag. */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 8px 0 8px;
+}
+
+/* Collapsed: head fills the space above the times row so the description can
+   expand into and clip to whatever room the current zoom leaves. */
+.headCollapsed {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.headRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+/* Inline delete, sized to the controls so it lines up with the title/picker. */
+/* Pinned to the top of its row so its vertical position is identical whether the
+   head is the inline title row (flex) or the project grid, whose row heights
+   differ by a sub-pixel. */
+.headTrash {
+  flex: none;
+  align-self: start;
+}
+
+/* The editable title and its static twin share box metrics; both soft-wrap. */
+.title,
+.titleStatic {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* The task line under a project-backed item's title. */
+.subtitleStatic {
+  display: block;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Time range + duration, pinned out of flow to the item's upper-right corner;
+   the head reserves a top inset so it never overlaps the title row. */
+.timeTag {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.desc {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.descWrap {
+  width: 100%;
+}
+
+.descStatic {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre-line;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Collapsed: size to content, but shrink-to-fit and clip the leftover space. */
+.descCollapsed {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Project/task selection: a mode dropdown + value control per row, with the trash
+   on the project row. Container query (not viewport) since a block's width is set
+   by the timeline, not the screen. Wide: mode and value sit at natural widths,
+   trash pinned right. Narrow: each value control drops to its own full-width row
+   spanning under the trash column. */
+.selectWrap {
+  container-type: inline-size;
+}
+
+.selectGrid {
+  display: grid;
+  grid-template-columns: max-content auto 1fr max-content;
+  grid-template-areas:
+    "pmode pval . trash"
+    "tmode tval . .";
+  column-gap: 6px;
+  row-gap: 4px;
+  align-items: center;
+}
+
+@container (max-width: 380px) {
+  .selectGrid {
+    grid-template-columns: max-content 1fr max-content;
+    grid-template-areas:
+      "pmode .    trash"
+      "pval  pval pval"
+      "tmode .    ."
+      "tval  tval tval";
+  }
+}
+
+.areaPmode {
+  grid-area: pmode;
+}
+
+.areaPval {
+  grid-area: pval;
+  min-width: 0;
+}
+
+.areaTmode {
+  grid-area: tmode;
+}
+
+.areaTval {
+  grid-area: tval;
+  min-width: 0;
+}
+
+.areaTrash {
+  grid-area: trash;
+  justify-self: end;
+}
+
+.modeSelect {
+  min-width: 0;
+}
+
+/* Stepper sits inside the rank field's box, like the time-anchor spinners. */
+.rankField {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  width: 96px;
+}
+
+.rankInput {
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 18px 0 6px;
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankInput:focus {
+  outline: none;
+}
+
+.rankInput:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.rankStepper {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.titleStatic {
+  cursor: pointer;
+}
+
+.titleCompleted {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+/* Resize grab zones on a collapsed item's fixed edges: full width, a capped
+   fraction of the height, with the dots tucked just inside the edge. */
+.handle {
+  position: absolute;
+  /* Negate the asymmetric borders (3px accent left, 1px right) so the centered
+     dots line up with the schedule-bound handles, which span the true center. */
+  left: -3px;
+  right: -1px;
+  height: min(30%, 16px);
+  display: flex;
+  justify-content: center;
+  color: color-mix(in srgb, var(--block-color) 60%, var(--fg));
+  opacity: 0.45;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 6;
+}
+
+.handle:hover {
+  opacity: 0.85;
+}
+
+.handleTop {
+  top: 0;
+  align-items: flex-start;
+}
+
+.handleBottom {
+  bottom: 0;
+  align-items: flex-end;
+}
+
+.handleDots {
+  font-size: 22px;
+  line-height: 0;
+}
+
+/* The dots band is the icon's vertical center; pull it to the edge (the empty
+   half overflows past the edge and is clipped). */
+.handleTop .handleDots {
+  margin-top: -5px;
+}
+
+.handleBottom .handleDots {
+  margin-bottom: -5px;
+}

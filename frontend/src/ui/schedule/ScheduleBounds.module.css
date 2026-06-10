@@ -1,0 +1,94 @@
+/* Light-gray bound marker spanning both gutters, with a clock + spinner cluster
+   that sits above the start line and below the end line. */
+/* No stacking context here: the line and cluster lift themselves above items,
+   but the handle stays at the default level so items (painted later) win where
+   its hit zone overflows the boundary into them. */
+.bound {
+  position: absolute;
+  left: calc(-1 * var(--gutter));
+  right: calc(-1 * var(--gutter));
+  pointer-events: none;
+}
+
+.line {
+  position: relative;
+  z-index: 15;
+  border-top: 1px solid var(--muted);
+  opacity: 0.4;
+}
+
+.cluster {
+  position: absolute;
+  left: var(--gutter);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 2px 4px;
+  border-radius: var(--radius);
+  pointer-events: auto;
+}
+
+.start .cluster {
+  bottom: 2px;
+}
+
+.end .cluster {
+  top: 2px;
+}
+
+/* Centered grab handle, aligned with the item edge handles; above the start
+   line, below the end line. */
+/* Zero-height, centered on the bound line; the dots sit just outside it (above
+   the start, below the end). */
+.handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 0;
+  pointer-events: none;
+  /* Dragging the bound must not select the hour labels behind it. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.handle > * {
+  pointer-events: auto;
+  cursor: ns-resize;
+  touch-action: none;
+  opacity: 0.55;
+}
+
+.handle > *:hover {
+  opacity: 1;
+}
+
+.start .handle {
+  transform: translateY(-5px);
+}
+
+.end .handle {
+  transform: translateY(5px);
+}
+
+.label {
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+.value {
+  width: 4.5em;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}

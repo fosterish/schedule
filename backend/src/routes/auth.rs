@@ -40,7 +40,7 @@ async fn logout(jar: SignedCookieJar<Key>) -> impl IntoResponse {
 
 #[derive(serde::Serialize)]
 struct MeResponse {
-    id: i64,
+    id: String,
     username: String,
 }
 
@@ -49,14 +49,20 @@ async fn me(
     user: AuthUser,
     jar: SignedCookieJar<Key>,
 ) -> AppResult<impl IntoResponse> {
-    let row: Option<(i64, String)> = sqlx::query_as("SELECT id, username FROM users WHERE id = ?")
-        .bind(user.0)
+    let row: Option<(String,)> = sqlx::query_as("SELECT username FROM users WHERE id = ?")
+        .bind(user.0 .0.to_string())
         .fetch_optional(&state.pool)
         .await?;
-    let Some((id, username)) = row else {
+    let Some((username,)) = row else {
         return Err(AppError::Unauthorized);
     };
-    let jar = jar.add(refresh_cookie(id));
+    let jar = jar.add(refresh_cookie(user.0));
     let _ = COOKIE_NAME;
-    Ok((jar, Json(MeResponse { id, username })))
+    Ok((
+        jar,
+        Json(MeResponse {
+            id: user.0 .0.to_string(),
+            username,
+        }),
+    ))
 }

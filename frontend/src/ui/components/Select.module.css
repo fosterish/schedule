@@ -1,0 +1,66 @@
+.root {
+  position: relative;
+  display: inline-block;
+  min-width: 0;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.control:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.value {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  white-space: nowrap;
+  text-align: left;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.option:hover,
+.option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}

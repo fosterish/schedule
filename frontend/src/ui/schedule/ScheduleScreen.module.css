@@ -1,0 +1,162 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.subheader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.subheaderStart {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.nav {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.todayBtn {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 12px;
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.todayBtn:hover {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  font-size: 16px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.navBtn:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.navBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.titleRow {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.title {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  word-break: break-word;
+}
+
+/* Day mode with a title: let the field hug its text so the date tag sits just
+   to its right. Higher specificity than AutoField's own width/flex rules. */
+.titleRowHug > .title {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 4ch;
+  max-width: 100%;
+  field-sizing: content;
+}
+
+.titleDate {
+  flex: none;
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: var(--muted);
+}
+
+.empty {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  padding-top: 48px;
+  color: var(--muted);
+}
+
+.emptyMsg {
+  margin: 0;
+  font-size: 16px;
+}
+
+.emptyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 220px;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 14px;
+  font: inherit;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.forkPicker {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}

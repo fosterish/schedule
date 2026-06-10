@@ -34,7 +34,8 @@ async fn main() -> anyhow::Result<()> {
     db::migrate(&pool).await?;
 
     let cookie_key = load_or_generate_cookie_key()?;
-    let frontend_dir = std::env::var("FRONTEND_DIR").unwrap_or_else(|_| "frontend".to_string());
+    let frontend_dir =
+        std::env::var("FRONTEND_DIR").unwrap_or_else(|_| "frontend/dist".to_string());
     let frontend_dir = PathBuf::from(frontend_dir);
 
     if !frontend_dir.exists() {
@@ -66,12 +67,7 @@ async fn main() -> anyhow::Result<()> {
     let api = Router::new()
         .route("/health", get(|| async { "ok" }))
         .merge(routes::auth_routes())
-        .merge(routes::projects_routes())
-        .merge(routes::tasks_routes())
-        .merge(routes::schedules_routes())
-        .merge(routes::calendar_routes())
-        .merge(routes::day_routes())
-        .merge(routes::history_routes())
+        .merge(routes::sync_routes())
         .with_state(state.clone());
 
     let app = Router::new()

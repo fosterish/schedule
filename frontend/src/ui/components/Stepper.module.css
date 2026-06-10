@@ -1,0 +1,22 @@
+.stepper {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 0;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 13px;
+  font-size: 11px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  color: var(--fg);
+}

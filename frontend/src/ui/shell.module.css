@@ -1,0 +1,103 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+}
+
+.narrowBar {
+  display: none;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.wideUser {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* On narrow screens the user row floats above the tabs to save horizontal room. */
+@media (max-width: 640px) {
+  .narrowBar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 2px 10px;
+    line-height: 1.2;
+  }
+
+  .narrowBar .user,
+  .narrowBar .logout {
+    height: auto;
+    padding: 0;
+    font-size: 12px;
+  }
+
+  .wideUser {
+    display: none;
+  }
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 12px;
+  font: inherit;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--fg);
+}
+
+.active {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.user {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.logout {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 10px;
+  font: inherit;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.logout:hover {
+  color: var(--fg);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

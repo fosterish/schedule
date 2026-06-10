@@ -1,0 +1,181 @@
+.screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.titleRow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  word-break: break-word;
+}
+
+/* Archived: gray the title and let it hug its text so the tag reads as a suffix.
+   The class lands on AutoField's mirror wrapper, which shrinks to the text. */
+.title.titleArchived {
+  flex: 0 1 auto;
+  min-width: 4ch;
+  /* The mirror drops the field's 6px right padding to hug the tag; reserve it
+     here so the text wraps at the same width as the full-width unarchived field. */
+  max-width: calc(100% - 6px);
+  color: var(--muted);
+}
+
+.archivedTag {
+  flex: none;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Sit the swatch on the title's first line while the buttons stay top-aligned. */
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  margin-right: -4px;
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  --pip-size: 16px;
+}
+
+.statRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statLabel {
+  width: 44px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--control-h);
+  padding: 0 10px 0 6px;
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.back:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.filter {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .filter {
+    flex: 1;
+  }
+}
+
+.clearCompleted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  font-size: 18px;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.clearCompleted:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.clearCompleted:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.archiveOn,
+.archiveOn:hover:not(:disabled) {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.add {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+/* Wide screens use the explicit "New task" button in the header instead. */
+@media (min-width: 641px) {
+  .add {
+    display: none;
+  }
+}
+
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+}

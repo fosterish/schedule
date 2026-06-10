@@ -1,0 +1,92 @@
+/* Anchored to the bottom of the item. A shared 3-column grid (label / value /
+   pin) keeps every row's columns aligned even when the label shrinks on narrow
+   items or a row omits its pin button. */
+.controls {
+  display: grid;
+  grid-template-columns: minmax(0, 116px) max-content max-content;
+  gap: 8px 6px;
+  margin-top: auto;
+  padding: 4px 8px 8px;
+  cursor: default;
+}
+
+/* Subgrid borrows the parent columns so the value column lines up across rows;
+   the min-height keeps a row's height fixed whether or not it shows a pin. */
+.row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-height: var(--control-h);
+}
+
+.fullRow {
+  grid-column: 1 / -1;
+}
+
+/* Capped at 116px by the grid column; shrinks (with an ellipsis) first on narrow
+   items so the value field and pin button never get clipped. */
+.label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Stepper sits inside the time field's box, like a native number spinner. */
+.valueWrap {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Left-aligned so the value's position is fixed by the left padding and never
+   shifts when the spinner shows/hides; the spinner reserves room on the right. */
+.anchorValue {
+  width: 90px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.anchorValueFixed {
+  padding-right: 18px;
+}
+
+/* Aligns the swatch's left edge with the time fields' text (field text inset). */
+.swatchCell {
+  padding-left: 7px;
+  justify-self: start;
+}
+
+.stepperSlot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.anchorBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  font-size: 15px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.anchorOn {
+  color: var(--bg);
+  background: var(--block-color, var(--accent));
+  border-color: var(--block-color, var(--accent));
+}

@@ -1,0 +1,76 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(320px, 90vw);
+  margin: 12vh auto 0;
+  padding: 24px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.input {
+  height: var(--control-h);
+  padding: 0 10px;
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.submit {
+  height: var(--control-h);
+  padding: 0 10px;
+  font: inherit;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  margin: 0;
+  color: #e25e5e;
+  font-size: 14px;
+}
+
+.accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.accountsLabel {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--control-h);
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.accountName {
+  flex: 1 1 auto;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}

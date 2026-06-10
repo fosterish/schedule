@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    :root {
+      --bg: #0f1115;
+      --line: #232733;
+      --blue-fill: #2c3352;
+      --seafoam-fill: #1b3c38;
+      --orange-fill: #49301e;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #ffffff;
+        --line: #e5e7eb;
+        --blue-fill: #e2e7ff;
+        --seafoam-fill: #d5efe9;
+        --orange-fill: #fce5d3;
+      }
+    }
+  </style>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="7" fill="var(--bg)" stroke="var(--line)"/>
+  <line x1="4" y1="12" x2="28" y2="12" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 2"/>
+  <line x1="4" y1="20" x2="28" y2="20" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 2"/>
+  <rect x="6.5" y="4.5" width="20.5" height="7" rx="2" fill="var(--blue-fill)" stroke="#7d92ff" stroke-opacity="0.45"/>
+  <rect x="6.5" y="4.5" width="3" height="7" rx="1" fill="#7d92ff"/>
+  <rect x="6.5" y="13" width="20.5" height="6" rx="2" fill="var(--seafoam-fill)" stroke="#3eb89a" stroke-opacity="0.45"/>
+  <rect x="6.5" y="13" width="3" height="6" rx="1" fill="#3eb89a"/>
+  <rect x="6.5" y="21.5" width="20.5" height="6" rx="2" fill="var(--orange-fill)" stroke="#ef8736" stroke-opacity="0.45"/>
+  <rect x="6.5" y="21.5" width="3" height="6" rx="1" fill="#ef8736"/>
+</svg>

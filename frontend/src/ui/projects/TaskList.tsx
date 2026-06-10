@@ -1,0 +1,195 @@
+import type { JSX } from "preact";
+import { useRef, useState } from "preact/hooks";
+
+import type { Project } from "@bindings/Project";
+import type { Task } from "@bindings/Task";
+import type { TaskId } from "@bindings/TaskId";
+import * as proj from "@lib/project";
+import { effectiveDependencies, effectiveTasks } from "@state/pending";
+import * as projectOps from "@state/mutations/project";
+import * as uistate from "@state/uistate";
+import { AutoField } from "@ui/components/AutoField";
+import { TrashButton } from "@ui/components/TrashButton";
+import { GripIcon } from "@ui/components/icons";
+
+import { DependencyEditor } from "./DependencyEditor";
+import s from "./TaskList.module.css";
+
+interface DragState {
+  id: TaskId;
+  startY: number;
+  y: number;
+  order: TaskId[];
+  mids: number[];
+  height: number;
+  target: proj.reorder.TaskReorder | null;
+  conflicts: Set<TaskId>;
+  moved: boolean;
+}
+
+// Per-row translateY for a live drag preview: shift the untouched rows to open a
+// gap at the target slot while the grabbed row floats with the pointer.
+function previewOffsets(d: DragState): Map<TaskId, number> {
+  const out = new Map<TaskId, number>([[d.id, d.y - d.startY]]);
+  if (!d.target) return out;
+  const rest = d.order.filter((id) => id !== d.id);
+  const insertAt = d.target.afterId == null ? 0 : rest.indexOf(d.target.afterId) + 1;
+  const preview = [...rest];
+  preview.splice(insertAt, 0, d.id);
+  for (const id of d.order) {
+    if (id === d.id) continue;
+    out.set(id, (preview.indexOf(id) - d.order.indexOf(id)) * d.height);
+  }
+  return out;
+}
+
+export function TaskList({ project, filter = "" }: { project: Project; filter?: string }): JSX.Element {
+  const all = effectiveTasks.value
+    .filter((t) => t.projectId === project.id)
+    .sort((a, b) => (a.listOrder < b.listOrder ? -1 : a.listOrder > b.listOrder ? 1 : 0));
+  const deps = effectiveDependencies.value.filter(
+    (d) => all.some((t) => t.id === d.blockedId) || all.some((t) => t.id === d.blockerId),
+  );
+  const q = filter.trim().toLowerCase();
+  const filtering = q !== "";
+  const visible = filtering ? all.filter((t) => (t.name || "Untitled task").toLowerCase().includes(q)) : all;
+  const [incomplete, completed] = proj.tasks.partitionByCompletion(visible);
+  const edges = proj.graph.edgesFromDeps(deps);
+
+  const rowRefs = useRef(new Map<TaskId, HTMLDivElement>());
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const selectedId = uistate.selectedTask.value;
+
+  function gripDown(id: TaskId) {
+    return (e: JSX.TargetedPointerEvent<HTMLButtonElement>): void => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      // Reordering another task drops the current selection; capture geometry on
+      // the next frame so it reflects the now-collapsed (deselected) layout.
+      uistate.selectTask(null);
+      const order = incomplete.map((t) => t.id);
+      const startY = e.clientY;
+      setDrag({ id, startY, y: startY, order, mids: [], height: 0, target: null, conflicts: new Set(), moved: false });
+      requestAnimationFrame(() => {
+        const mids = order.map((tid) => {
+          const r = rowRefs.current.get(tid)?.getBoundingClientRect();
+          return r ? r.top + r.height / 2 : 0;
+        });
+        const height = rowRefs.current.get(id)?.getBoundingClientRect().height ?? 0;
+        setDrag((d) => (d && d.id === id ? { ...d, mids, height } : d));
+      });
+    };
+  }
+
+  function gripMove(e: JSX.TargetedPointerEvent<HTMLButtonElement>): void {
+    if (!drag || drag.mids.length === 0) return;
+    const y = e.clientY;
+    const res = proj.reorder.detect(drag.order, drag.mids, drag.id, y >= drag.startY ? "down" : "up", y, edges);
+    if (res.ok) {
+      setDrag({ ...drag, y, moved: true, target: res.value, conflicts: new Set() });
+    } else {
+      setDrag({ ...drag, y, moved: true, conflicts: new Set(res.error.conflictIds) });
+    }
+  }
+
+  function gripUp(): void {
+    if (!drag) return;
+    const d = drag;
+    setDrag(null);
+    if (d.moved && d.target && d.conflicts.size === 0) {
+      projectOps.reorderTask(project.id, d.id, d.target.afterId);
+    }
+  }
+
+  const offsets = drag ? previewOffsets(drag) : null;
+
+  const renderRow = (t: Task, draggable: boolean): JSX.Element => {
+    const selected = selectedId === t.id;
+    const dragging = drag?.id === t.id && drag.moved;
+    const offset = offsets?.get(t.id);
+    return (
+      <div
+        key={t.id}
+        ref={(el) => {
+          if (el) rowRefs.current.set(t.id, el);
+          else rowRefs.current.delete(t.id);
+        }}
+        class={[s.row, selected ? s.selected : "", dragging ? s.dragging : "", drag?.conflicts.has(t.id) ? s.conflict : ""]
+          .filter(Boolean)
+          .join(" ")}
+        style={offset ? `transform:translateY(${offset}px)` : undefined}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!selected) uistate.selectTask(t.id, null);
+        }}
+      >
+        <div class={s.rowHead}>
+          <input
+            type="checkbox"
+            class={s.check}
+            checked={t.completedAt != null}
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => projectOps.toggleTaskComplete(t.id)}
+          />
+          {selected ? (
+            <AutoField
+              value={t.name}
+              onCommit={(v) => projectOps.patchTask(t.id, { name: v })}
+              placeholder="Untitled task"
+              autoFocus={uistate.focusOnSelect.value === "title"}
+              ariaLabel="Task name"
+              class={s.name!}
+            />
+          ) : (
+            <span
+              class={t.completedAt != null ? `${s.name} ${s.done}` : s.name}
+              onClick={(e) => {
+                e.stopPropagation();
+                uistate.selectTask(t.id, "title");
+              }}
+            >
+              {t.name || "Untitled task"}
+            </span>
+          )}
+          {draggable && !selected && (
+            <button
+              type="button"
+              class={s.grip}
+              title="Drag to reorder"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={gripDown(t.id)}
+              onPointerMove={gripMove}
+              onPointerUp={gripUp}
+            >
+              <GripIcon />
+            </button>
+          )}
+          {selected && <TrashButton onClick={() => projectOps.deleteTask(t.id)} label="Delete task" />}
+        </div>
+        {selected && (
+          <div class={s.detail}>
+            <AutoField
+              value={t.description ?? ""}
+              onCommit={(v) => projectOps.patchTask(t.id, { description: v || null })}
+              placeholder={"Add description\u2026"}
+              multiline
+              autoFocus={uistate.focusOnSelect.value === "description"}
+              ariaLabel="Task description"
+            />
+            <DependencyEditor task={t} tasks={all} deps={deps} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div class={s.list} data-selection-surface onClick={() => uistate.selectTask(null)}>
+      {incomplete.map((t) => renderRow(t, !filtering))}
+      {completed.length > 0 && <div class={s.divider}>Completed</div>}
+      {completed.map((t) => renderRow(t, false))}
+      {filtering && incomplete.length === 0 && completed.length === 0 && <p class={s.empty}>No matches.</p>}
+    </div>
+  );
+}

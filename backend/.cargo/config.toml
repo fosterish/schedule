@@ -1,0 +1,5 @@
+# Read by the ts-rs export tests so `cargo test` regenerates the frontend bindings.
+# `relative = true`: path is resolved from this crate's directory.
+[env]
+TS_RS_EXPORT_DIR = { value = "../frontend/src/bindings", relative = true }
+TS_RS_LARGE_INT = "number"

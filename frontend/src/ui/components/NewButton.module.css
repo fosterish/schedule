@@ -1,0 +1,30 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 12px 0 10px;
+  font: inherit;
+  white-space: nowrap;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--fg));
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The round bottom-anchored add button replaces this on narrow screens. */
+@media (max-width: 640px) {
+  .btn {
+    display: none;
+  }
+}

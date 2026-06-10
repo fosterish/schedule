@@ -10,23 +10,30 @@ use axum_extra::extract::cookie::{Cookie, Key, SameSite, SignedCookieJar};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
+use uuid::Uuid;
+
 use crate::error::{AppError, AppResult};
+use crate::types::common::UserId;
 
 pub const COOKIE_NAME: &str = "schedule_session";
 pub const SESSION_TTL_DAYS: i64 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionPayload {
-    pub user_id: i64,
+    /// UUID, hyphenated.
+    pub user_id: String,
     /// Unix-seconds expiry timestamp.
     pub exp: i64,
 }
 
 impl SessionPayload {
-    pub fn new(user_id: i64) -> Self {
+    pub fn new(user_id: UserId) -> Self {
         let exp =
             (OffsetDateTime::now_utc() + time::Duration::days(SESSION_TTL_DAYS)).unix_timestamp();
-        Self { user_id, exp }
+        Self {
+            user_id: user_id.0.to_string(),
+            exp,
+        }
     }
 
     pub fn is_expired(&self) -> bool {
@@ -80,7 +87,7 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
 
 /// Axum extractor that requires an authenticated, non-expired session.
 #[derive(Debug, Clone, Copy)]
-pub struct AuthUser(pub i64);
+pub struct AuthUser(pub UserId);
 
 impl<S> FromRequestParts<S> for AuthUser
 where
@@ -98,12 +105,13 @@ where
         if payload.is_expired() {
             return Err(AppError::Unauthorized);
         }
-        Ok(AuthUser(payload.user_id))
+        let id = Uuid::parse_str(&payload.user_id).map_err(|_| AppError::Unauthorized)?;
+        Ok(AuthUser(UserId(id)))
     }
 }
 
 /// Builds a fresh cookie with a refreshed session; callers add it to the returned jar.
-pub fn refresh_cookie<'a>(user_id: i64) -> Cookie<'a> {
+pub fn refresh_cookie<'a>(user_id: UserId) -> Cookie<'a> {
     make_cookie(encode_session(&SessionPayload::new(user_id)))
 }
 
@@ -111,8 +119,8 @@ pub async fn authenticate(
     pool: &sqlx::SqlitePool,
     username: &str,
     password: &str,
-) -> AppResult<i64> {
-    let row: Option<(i64, String)> =
+) -> AppResult<UserId> {
+    let row: Option<(String, String)> =
         sqlx::query_as("SELECT id, password_hash FROM users WHERE username = ?")
             .bind(username)
             .fetch_optional(pool)
@@ -123,7 +131,8 @@ pub async fn authenticate(
     if !verify_password(password, &password_hash) {
         return Err(AppError::Unauthorized);
     }
-    Ok(id)
+    let id = Uuid::parse_str(&id).map_err(|_| AppError::Unauthorized)?;
+    Ok(UserId(id))
 }
 
 #[allow(dead_code)]
