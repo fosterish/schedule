@@ -5,16 +5,12 @@
 }
 
 .btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn from "../styles/button.module.css";
   width: 18px;
   height: 13px;
   font-size: 11px;
   color: var(--muted);
-  background: transparent;
   border: none;
-  cursor: pointer;
 }
 
 .btn:hover {

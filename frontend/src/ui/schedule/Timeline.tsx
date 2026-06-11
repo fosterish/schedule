@@ -158,7 +158,10 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
 
   const scroll = useRef<HTMLDivElement | null>(null);
   const timelineEl = useRef<HTMLDivElement | null>(null);
-  const pinch = useRef<{ dist: number; zoom: number } | null>(null);
+  const pinch = useRef<{ dist: number; zoom: number; minute: number } | null>(null);
+  // Set during a pinch move; a post-commit effect parks this minute under the
+  // live finger midpoint so the gesture zooms around its focal point.
+  const pinchScroll = useRef<{ minute: number; screenY: number } | null>(null);
   const cursorDrag = useRef<{ startY: number; startMinute: number } | null>(null);
   const zoomRaf = useRef<number | null>(null);
   const justDragged = useRef(false);
@@ -641,6 +644,16 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
   const height = (disp.spanEnd - disp.spanStart) * disp.zoom;
   const dy = (minute: number): number => (minute - disp.spanStart) * disp.zoom;
 
+  // After a pinch frame commits its new height, scroll so the focal minute sits
+  // under the live finger midpoint, zooming around where the pinch began.
+  useLayoutEffect(() => {
+    const a = pinchScroll.current;
+    const el = scroll.current;
+    if (!a || !el) return;
+    pinchScroll.current = null;
+    el.scrollTop = Math.max(0, timelineOffset(el) + (a.minute - disp.spanStart) * disp.zoom - a.screenY);
+  });
+
   return (
     <div class={s.wrap} data-selection-surface>
       <div
@@ -648,7 +661,11 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
         class={s.scroll}
         onScroll={(e) => (uistate.scrollTop.value = e.currentTarget.scrollTop)}
         onTouchStart={(e) => {
-          if (e.touches.length === 2) pinch.current = { dist: touchDist(e), zoom: uistate.zoom.value };
+          if (e.touches.length === 2) {
+            const tl = timelineEl.current;
+            const minute = tl ? span.start + (touchMidY(e) - tl.getBoundingClientRect().top) / pxPerMin : span.start;
+            pinch.current = { dist: touchDist(e), zoom: uistate.zoom.value, minute };
+          }
         }}
         onTouchMove={(e) => {
           // An armed reorder or an edge-resize owns the gesture; stop the pan.
@@ -661,6 +678,8 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
             const z = (pinch.current.zoom * touchDist(e)) / pinch.current.dist;
             if (selected) uistate.selectItem(null);
             const b = fit > 0 ? zoomBounds(fit, 0) : null;
+            const el = scroll.current;
+            if (el) pinchScroll.current = { minute: pinch.current.minute, screenY: touchMidY(e) - el.getBoundingClientRect().top };
             uistate.setZoom(b ? clampZoom(z, b) : z);
           }
         }}
@@ -688,19 +707,13 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
           {view.schedule && (
             <>
               <ScheduleBound
-                label="Start"
                 edge="start"
-                minute={bounds.start}
                 top={dy(bounds.start)}
-                onSet={(v) => scheduleOps.patchScheduleBounds(scheduleId, { start: v })}
                 onResizeStart={onResizeDown({ kind: "schedule", edge: "start" }, bounds.start)}
               />
               <ScheduleBound
-                label="End"
                 edge="end"
-                minute={bounds.end}
                 top={dy(bounds.end)}
-                onSet={(v) => scheduleOps.patchScheduleBounds(scheduleId, { end: v })}
                 onResizeStart={onResizeDown({ kind: "schedule", edge: "end" }, bounds.end)}
               />
             </>
@@ -858,4 +871,8 @@ function touchDist(e: TouchEvent): number {
   const a = e.touches[0]!;
   const b = e.touches[1]!;
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
+function touchMidY(e: TouchEvent): number {
+  return (e.touches[0]!.clientY + e.touches[1]!.clientY) / 2;
 }

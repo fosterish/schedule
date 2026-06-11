@@ -1,8 +1,8 @@
-/* Light-gray bound marker spanning both gutters, with a clock + spinner cluster
-   that sits above the start line and below the end line. */
-/* No stacking context here: the line and cluster lift themselves above items,
-   but the handle stays at the default level so items (painted later) win where
-   its hit zone overflows the boundary into them. */
+/* Light-gray bound marker spanning both gutters: a hairline with a centered grab
+   handle, above the start line and below the end line. */
+/* No stacking context here: the line lifts itself above items, but the handle
+   stays at the default level so items (painted later) win where its hit zone
+   overflows the boundary into them. */
 .bound {
   position: absolute;
   left: calc(-1 * var(--gutter));
@@ -15,29 +15,6 @@
   z-index: 15;
   border-top: 1px solid var(--muted);
   opacity: 0.4;
-}
-
-.cluster {
-  position: absolute;
-  left: var(--gutter);
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--muted);
-  background: var(--bg);
-  padding: 2px 4px;
-  border-radius: var(--radius);
-  pointer-events: auto;
-}
-
-.start .cluster {
-  bottom: 2px;
-}
-
-.end .cluster {
-  top: 2px;
 }
 
 /* Centered grab handle, aligned with the item edge handles; above the start
@@ -82,13 +59,30 @@
   transform: translateY(5px);
 }
 
+/* Editable start/end fields hosted in the schedule toolbar row; pushed to the
+   row's right edge. Narrow screens stack the two fields, right-aligned. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+
 .label {
-  text-transform: lowercase;
   letter-spacing: 0.04em;
 }
 
-.value {
-  width: 4.5em;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
+@media (max-width: 640px) {
+  .bar {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
 }

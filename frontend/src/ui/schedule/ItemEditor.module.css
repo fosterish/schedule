@@ -32,7 +32,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-small);
 }
 
 /* Aligns the swatch's left edge with the time fields' text (field text inset). */
@@ -42,18 +42,13 @@
 }
 
 .anchorBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn from "../styles/button.module.css";
   flex: none;
   width: var(--control-h);
   height: var(--control-h);
-  font-size: 15px;
+  font-size: 20px;
   color: var(--muted);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .anchorOn {

@@ -12,17 +12,15 @@
   align-items: flex-start;
 }
 
+/* Toolbar row: left-aligned mode buttons, right-aligned start/end fields (the
+   bar pushes itself right). Top-aligned so the buttons hold their place when the
+   fields stack on narrow screens. */
 .subheader {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 8px;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border);
-}
-
-.subheaderStart {
-  justify-content: flex-start;
-  gap: 8px;
 }
 
 .nav {
@@ -31,16 +29,11 @@
 }
 
 .todayBtn {
-  display: inline-flex;
-  align-items: center;
+  composes: btn from "../styles/button.module.css";
   height: var(--control-h);
   padding: 0 12px;
-  font: inherit;
   color: var(--fg);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .todayBtn:hover {
@@ -48,26 +41,16 @@
 }
 
 .navBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn from "../styles/button.module.css";
   width: var(--control-h);
   height: var(--control-h);
-  font-size: 16px;
+  font-size: 20px;
   color: var(--muted);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .navBtn:hover:not(:disabled) {
   color: var(--fg);
-}
-
-.navBtn:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .titleRow {
@@ -80,7 +63,7 @@
 
 .title {
   flex: 1;
-  font-size: 18px;
+  font-size: var(--font-large);
   font-weight: 600;
   line-height: 24px;
   word-break: break-word;
@@ -149,6 +132,8 @@
   width: 220px;
 }
 
+/* Accent button overrides background, so it stays standalone (not composing the
+   transparent .btn base). */
 .primary {
   display: inline-flex;
   align-items: center;
@@ -156,7 +141,6 @@
   gap: 6px;
   height: var(--control-h);
   padding: 0 14px;
-  font: inherit;
   color: var(--bg);
   background: var(--accent);
   border: none;

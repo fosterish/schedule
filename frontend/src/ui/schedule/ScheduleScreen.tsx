@@ -17,6 +17,7 @@ import { TrashButton } from "@ui/components/TrashButton";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@ui/components/icons";
 
 import { RunControls } from "./RunControls";
+import { ScheduleBoundsBar } from "./ScheduleBounds";
 import { Timeline } from "./Timeline";
 import s from "./ScheduleScreen.module.css";
 
@@ -63,6 +64,19 @@ export function ScheduleScreen({ view, mode, date }: Props): JSX.Element {
     flags = run.flags(items, layout.compute(items, span), runMinute, span);
   }
 
+  // Right-aligned start/end fields that share the toolbar row with the mode's
+  // left-aligned buttons.
+  const boundsBar = (): JSX.Element | null =>
+    schedule ? (
+      <ScheduleBoundsBar
+        start={schedule.start}
+        end={schedule.end}
+        onSet={(edge, minute) =>
+          scheduleOps.patchScheduleBounds(schedule.id, edge === "start" ? { start: minute } : { end: minute })
+        }
+      />
+    ) : null;
+
   const hasTitle = (schedule?.name ?? "").trim() !== "";
   const titlePlaceholder =
     mode === "today" ? "Today" : mode === "date" && date != null ? fmtDateLabel(date) : "Untitled template";
@@ -101,7 +115,7 @@ export function ScheduleScreen({ view, mode, date }: Props): JSX.Element {
         />
       </header>
       {mode === "date" && date != null && (
-        <div class={`${s.subheader} ${s.subheaderStart}`}>
+        <div class={s.subheader}>
           <div class={s.nav}>
             <button type="button" class={s.navBtn} title="Previous day" onClick={() => route(`/date/${shiftDate(date, -1)}`)}>
               <ChevronLeftIcon />
@@ -113,18 +127,21 @@ export function ScheduleScreen({ view, mode, date }: Props): JSX.Element {
           <button type="button" class={s.todayBtn} onClick={() => route("/today")}>
             Today
           </button>
+          {boundsBar()}
         </div>
       )}
       {mode === "template" && (
-        <div class={`${s.subheader} ${s.subheaderStart}`}>
+        <div class={s.subheader}>
           <button type="button" class={s.todayBtn} onClick={() => route("/today")}>
             Today
           </button>
+          {boundsBar()}
         </div>
       )}
       {mode === "today" && (
         <div class={s.subheader}>
           <RunControls scheduleId={schedule?.id ?? null} flags={flags} atMinute={runMinute} />
+          {boundsBar()}
         </div>
       )}
       {schedule && view ? (

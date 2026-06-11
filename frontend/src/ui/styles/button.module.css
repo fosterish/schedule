@@ -1,0 +1,18 @@
+/* Shared button skeleton: every button composes this, then adds its own size,
+   color, border, and hover. Holds only what they all agree on, so it stays
+   override-safe regardless of stylesheet order (font comes from the global
+   `button` reset; accent/hidden buttons that need a different background or
+   display stay standalone). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

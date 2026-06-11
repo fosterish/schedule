@@ -25,7 +25,7 @@
 .title {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 18px;
+  font-size: var(--font-large);
   font-weight: 600;
   line-height: 24px;
   word-break: break-word;
@@ -44,7 +44,7 @@
 
 .archivedTag {
   flex: none;
-  font-size: 18px;
+  font-size: var(--font-large);
   font-weight: 600;
   line-height: 24px;
   color: var(--muted);
@@ -76,7 +76,7 @@
 
 .statLabel {
   width: 44px;
-  font-size: 13px;
+  font-size: var(--font-small);
   color: var(--muted);
 }
 
@@ -89,17 +89,12 @@
 }
 
 .back {
-  display: inline-flex;
-  align-items: center;
+  composes: btn from "../styles/button.module.css";
   gap: 4px;
   height: var(--control-h);
   padding: 0 10px 0 6px;
-  font: inherit;
   color: var(--fg);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .back:hover {
@@ -117,26 +112,16 @@
 }
 
 .clearCompleted {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn from "../styles/button.module.css";
   width: var(--control-h);
   height: var(--control-h);
-  font-size: 18px;
+  font-size: 20px;
   color: var(--fg);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .clearCompleted:hover:not(:disabled) {
   background: color-mix(in srgb, var(--fg) 6%, transparent);
-}
-
-.clearCompleted:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .archiveOn,
@@ -154,9 +139,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  font-size: 20px;
+  width: 52px;
+  height: 52px;
+  font-size: 26px;
   color: var(--bg);
   background: var(--accent);
   border: none;

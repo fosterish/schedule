@@ -117,6 +117,7 @@
   min-width: 0;
   padding: 4px 6px;
   border: 1px solid transparent;
+  font-size: var(--font-medium);
   font-weight: 600;
   line-height: 1.4;
   word-break: break-word;
@@ -126,8 +127,7 @@
 .subtitleStatic {
   display: block;
   font-weight: 400;
-  font-size: 13px;
-  color: var(--muted);
+  font-size: var(--font-medium);
 }
 
 /* Time range + duration, pinned out of flow to the item's upper-right corner;
@@ -136,7 +136,7 @@
   position: absolute;
   top: 3px;
   right: 4px;
-  font-size: 10px;
+  font-size: var(--font-tiny);
   line-height: 1;
   color: var(--muted);
   white-space: nowrap;
@@ -144,7 +144,7 @@
 }
 
 .desc {
-  font-size: 13px;
+  font-size: var(--font-medium);
   line-height: 18px;
 }
 
@@ -156,7 +156,7 @@
   width: 100%;
   padding: 4px 6px;
   border: 1px solid transparent;
-  font-size: 13px;
+  font-size: var(--font-medium);
   line-height: 18px;
   white-space: pre-line;
   color: var(--muted);

@@ -1,10 +1,11 @@
+/* Accent + hidden-on-mobile, so it overrides background and display; kept
+   standalone rather than composing the transparent .btn base. */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: var(--control-h);
   padding: 0 12px 0 10px;
-  font: inherit;
   white-space: nowrap;
   color: var(--bg);
   background: var(--accent);

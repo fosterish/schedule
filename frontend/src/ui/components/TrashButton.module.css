@@ -1,24 +1,14 @@
 .trash {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn from "../styles/button.module.css";
   width: var(--control-h);
   height: var(--control-h);
   padding: 0;
-  font-size: 16px;
+  font-size: 20px;
   color: var(--muted);
-  background: transparent;
   border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .trash:hover:not(:disabled) {
   color: var(--fg);
   background: color-mix(in srgb, var(--fg) 8%, transparent);
-}
-
-.trash:disabled {
-  opacity: 0.4;
-  cursor: default;
 }

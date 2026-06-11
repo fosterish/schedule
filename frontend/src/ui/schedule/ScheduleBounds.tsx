@@ -1,9 +1,8 @@
 import type { JSX } from "preact";
 
 import { fmtClock, parseClockToMin } from "@lib/timefmt";
-import { AutoField } from "@ui/components/AutoField";
 import { DotsIcon } from "@ui/components/icons";
-import { Stepper } from "@ui/components/Stepper";
+import { StepperField } from "@ui/components/StepperField";
 
 import s from "./ScheduleBounds.module.css";
 
@@ -16,19 +15,16 @@ function snap(value: number, dir: number): number {
   return dir > 0 ? Math.ceil(value / STEP) * STEP : Math.floor(value / STEP) * STEP;
 }
 
-interface Props {
-  label: string;
-  minute: number;
+interface BoundProps {
   edge: "start" | "end";
   top: number;
-  onSet: (minute: number) => void;
   onResizeStart?: (e: JSX.TargetedPointerEvent<HTMLDivElement>) => void;
 }
 
 // A light-gray marker for one schedule bound: a hairline at the bound minute with
-// an editable clock field + 15-min spinner, clustered above the start / below the
-// end. A centered grab handle (above the start, below the end) drags the bound.
-export function ScheduleBound({ label, minute, edge, top, onSet, onResizeStart }: Props): JSX.Element {
+// a centered grab handle (above the start, below the end) that drags the bound.
+// The editable time value lives in the toolbar (ScheduleBoundsBar).
+export function ScheduleBound({ edge, top, onResizeStart }: BoundProps): JSX.Element {
   const cls = `${s.bound} ${edge === "start" ? s.start : s.end}`;
   return (
     <div class={cls} style={`top:${top}px`} onClick={(e) => e.stopPropagation()}>
@@ -44,21 +40,41 @@ export function ScheduleBound({ label, minute, edge, top, onSet, onResizeStart }
           <DotsIcon />
         </div>
       )}
-      <div class={s.cluster}>
-        <span class={s.label}>{label}</span>
-        <AutoField
-          value={fmtClock(minute)}
-          onCommit={(t) => {
-            const v = parseClockToMin(t);
-            if (v != null) onSet(v);
-          }}
-          ariaLabel={`Schedule ${label.toLowerCase()}`}
-          selectOnFocus
-          commitOnBlur
-          class={s.value!}
-        />
-        <Stepper onStep={(d) => onSet(snap(minute, d))} label={label} />
-      </div>
+    </div>
+  );
+}
+
+interface BarProps {
+  start: number;
+  end: number;
+  onSet: (edge: "start" | "end", minute: number) => void;
+}
+
+// Editable start/end clock fields for the toolbar: each a label, a clock field,
+// and a 15-min spinner.
+export function ScheduleBoundsBar({ start, end, onSet }: BarProps): JSX.Element {
+  return (
+    <div class={s.bar}>
+      <BoundField label="Start" minute={start} onSet={(v) => onSet("start", v)} />
+      <BoundField label="End" minute={end} onSet={(v) => onSet("end", v)} />
+    </div>
+  );
+}
+
+function BoundField({ label, minute, onSet }: { label: string; minute: number; onSet: (m: number) => void }): JSX.Element {
+  return (
+    <div class={s.group}>
+      <span class={s.label}>{label}</span>
+      <StepperField
+        value={fmtClock(minute)}
+        onCommit={(t) => {
+          const v = parseClockToMin(t);
+          if (v != null) onSet(v);
+        }}
+        ariaLabel={`Schedule ${label.toLowerCase()}`}
+        onStep={(d) => onSet(snap(minute, d))}
+        bordered
+      />
     </div>
   );
 }

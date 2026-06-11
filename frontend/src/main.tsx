@@ -1,12 +1,16 @@
 import { render } from "preact";
 
+// Foundational styles first so component CSS (incl. classes that `composes` the
+// shared .btn base) is emitted after them and can override the base.
+import "@ui/styles/tokens.css";
+import "@ui/styles/base.css";
+import "@ui/styles/button.module.css";
+
 import { setUnauthorizedHandler } from "@data/api";
 import { startClock } from "@state/clock";
 import { startReminders } from "@state/reminders";
 import * as session from "@state/session";
 import { App } from "@ui/app";
-import "@ui/styles/tokens.css";
-import "@ui/styles/base.css";
 
 // A 401 mid-session drops the user; the auth gate then routes to /login.
 setUnauthorizedHandler(session.handleUnauthorized);

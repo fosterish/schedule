@@ -13,17 +13,12 @@
 
 .navBtn,
 .iconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn from "../styles/button.module.css";
   width: var(--control-h);
   height: var(--control-h);
-  font-size: 16px;
+  font-size: 20px;
   color: var(--muted);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .navBtn:hover,
@@ -32,16 +27,11 @@
 }
 
 .todayBtn {
-  display: inline-flex;
-  align-items: center;
+  composes: btn from "../styles/button.module.css";
   height: var(--control-h);
   padding: 0 12px;
-  font: inherit;
   color: var(--fg);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .scroll {

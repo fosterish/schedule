@@ -14,7 +14,14 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font);
+  font-size: var(--font-medium);
   -webkit-text-size-adjust: 100%;
+}
+
+/* Buttons don't inherit type by default; opt them in so every button reads at
+   the body's medium size unless its own class sets a font-size. */
+button {
+  font: inherit;
 }
 
 #app {

@@ -4,24 +4,14 @@
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: btn from "../styles/button.module.css";
   width: var(--control-h);
   height: var(--control-h);
-  font-size: 16px;
+  font-size: 20px;
   color: var(--muted);
-  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
 }
 
 .btn:hover:not(:disabled) {
   color: var(--fg);
-}
-
-.btn:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
