@@ -1,5 +1,5 @@
 import type { ComponentChildren, JSX } from "preact";
-import { useEffect } from "preact/hooks";
+import { useEffect, useMemo } from "preact/hooks";
 import { LocationProvider, Route, Router, useLocation } from "preact-iso";
 
 import * as session from "@state/session";
@@ -11,6 +11,34 @@ import { ProjectDetail, ProjectsList } from "./projects";
 import { ScheduleDate, ScheduleTemplate, ScheduleToday } from "./schedule";
 import { Settings } from "./settings";
 import { Shell } from "./shell";
+
+// Deployment base without a trailing slash ("" at root, "/schedule" behind the
+// reverse proxy). preact-iso has no base support, so we strip it from the path
+// the router sees and re-prepend it on navigation to keep the prefix in the URL.
+const BASE = import.meta.env.BASE_URL.replace(/\/+$/, "");
+
+function stripBase(path: string): string {
+  if (!BASE) return path;
+  if (path === BASE) return "/";
+  if (path.startsWith(`${BASE}/`)) return path.slice(BASE.length);
+  return path;
+}
+
+// Wraps preact-iso so routes and `useLocation()` work in base-relative terms:
+// the path is reported without the base, and `route()` re-adds it before pushing.
+function BaseRouting({ children }: { children: ComponentChildren }): JSX.Element {
+  const loc = useLocation();
+  const value = useMemo(
+    () => ({
+      ...loc,
+      path: stripBase(loc.path),
+      url: stripBase(loc.url),
+      route: (to: string, replace?: boolean) => loc.route(`${BASE}${to}`, replace),
+    }),
+    [loc.url, loc.path],
+  );
+  return <LocationProvider.ctx.Provider value={value}>{children}</LocationProvider.ctx.Provider>;
+}
 
 const NotFound = (): JSX.Element => <div style={{ padding: 16 }}>Not found</div>;
 
@@ -46,24 +74,26 @@ function Loaded({ children }: { children: ComponentChildren }): JSX.Element {
 export function App(): JSX.Element {
   return (
     <LocationProvider>
-      <AuthGate>
-        <Loaded>
-          <Shell>
-            <Router>
-              <Route path="/" component={Index} />
-              <Route path="/today" component={ScheduleToday} />
-              <Route path="/date/:date" component={ScheduleDate} />
-              <Route path="/template/:id" component={ScheduleTemplate} />
-              <Route path="/projects" component={ProjectsList} />
-              <Route path="/projects/:id" component={ProjectDetail} />
-              <Route path="/calendar" component={Calendar} />
-              <Route path="/settings" component={Settings} />
-              <Route path="/login" component={Login} />
-              <Route default component={NotFound} />
-            </Router>
-          </Shell>
-        </Loaded>
-      </AuthGate>
+      <BaseRouting>
+        <AuthGate>
+          <Loaded>
+            <Shell>
+              <Router>
+                <Route path="/" component={Index} />
+                <Route path="/today" component={ScheduleToday} />
+                <Route path="/date/:date" component={ScheduleDate} />
+                <Route path="/template/:id" component={ScheduleTemplate} />
+                <Route path="/projects" component={ProjectsList} />
+                <Route path="/projects/:id" component={ProjectDetail} />
+                <Route path="/calendar" component={Calendar} />
+                <Route path="/settings" component={Settings} />
+                <Route path="/login" component={Login} />
+                <Route default component={NotFound} />
+              </Router>
+            </Shell>
+          </Loaded>
+        </AuthGate>
+      </BaseRouting>
     </LocationProvider>
   );
 }
