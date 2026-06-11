@@ -2,6 +2,7 @@ import { render } from "preact";
 
 import { setUnauthorizedHandler } from "@data/api";
 import { startClock } from "@state/clock";
+import { startReminders } from "@state/reminders";
 import * as session from "@state/session";
 import { App } from "@ui/app";
 import "@ui/styles/tokens.css";
@@ -14,6 +15,7 @@ setUnauthorizedHandler(session.handleUnauthorized);
 // attach that user's cache and converge. The auth gate routes to /login if none.
 async function boot(): Promise<void> {
   startClock();
+  startReminders();
   await session.loadSession();
   if (session.user.value) await session.beginSession();
 }

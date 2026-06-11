@@ -113,3 +113,41 @@ CREATE TABLE templates (
   deleted_rev  INTEGER
 );
 CREATE INDEX templates_by_rev ON templates(user_id, updated_rev);
+
+-- User-scoped preferences, one synced row per user (notification lead times +
+-- the default range new schedules are seeded with). The notification on/off
+-- toggle is device-local and lives client-side, never here.
+CREATE TABLE user_settings (
+  user_id          TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  lead_fixed_min   INTEGER NOT NULL,
+  lead_dynamic_min INTEGER NOT NULL,
+  default_start    INTEGER NOT NULL,
+  default_end      INTEGER NOT NULL,
+  updated_rev      INTEGER NOT NULL,
+  deleted_rev      INTEGER
+);
+CREATE INDEX user_settings_by_rev ON user_settings(user_id, updated_rev);
+
+-- Web Push (not synced; no rev/tombstone). The client owns scheduling and the
+-- server only relays. `push_subscriptions` holds one row per device; reminders
+-- are user-scoped (last-write-wins across devices) and fan out to every device.
+CREATE TABLE push_subscriptions (
+  endpoint     TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  p256dh       TEXT NOT NULL,
+  auth         TEXT NOT NULL,
+  last_seen_ms INTEGER NOT NULL,
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX push_subscriptions_by_user ON push_subscriptions(user_id);
+CREATE INDEX push_subscriptions_by_last_seen ON push_subscriptions(last_seen_ms);
+
+-- Pending reminders: an absolute fire time and an opaque (client-built) payload.
+CREATE TABLE push_reminders (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  fire_at_ms INTEGER NOT NULL,
+  payload    TEXT NOT NULL
+);
+CREATE INDEX push_reminders_by_fire ON push_reminders(fire_at_ms);
+CREATE INDEX push_reminders_by_user ON push_reminders(user_id);

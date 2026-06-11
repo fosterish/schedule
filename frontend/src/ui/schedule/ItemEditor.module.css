@@ -35,39 +35,10 @@
   font-size: 13px;
 }
 
-/* Stepper sits inside the time field's box, like a native number spinner. */
-.valueWrap {
-  position: relative;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-}
-
-/* Left-aligned so the value's position is fixed by the left padding and never
-   shifts when the spinner shows/hides; the spinner reserves room on the right. */
-.anchorValue {
-  width: 90px;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
-}
-
-.anchorValueFixed {
-  padding-right: 18px;
-}
-
 /* Aligns the swatch's left edge with the time fields' text (field text inset). */
 .swatchCell {
   padding-left: 7px;
   justify-self: start;
-}
-
-.stepperSlot {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 3px;
-  display: flex;
-  align-items: center;
 }
 
 .anchorBtn {

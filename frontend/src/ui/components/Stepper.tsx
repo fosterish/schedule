@@ -15,6 +15,7 @@ export function Stepper({ onStep, label }: Props): JSX.Element {
       <button
         type="button"
         class={s.btn}
+        tabIndex={-1}
         aria-label={label ? `Increase ${label}` : "Increase"}
         onClick={() => onStep(1)}
       >
@@ -23,6 +24,7 @@ export function Stepper({ onStep, label }: Props): JSX.Element {
       <button
         type="button"
         class={s.btn}
+        tabIndex={-1}
         aria-label={label ? `Decrease ${label}` : "Decrease"}
         onClick={() => onStep(-1)}
       >

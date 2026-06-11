@@ -1,23 +1,15 @@
 .screen {
+  composes: screen from "../styles/screen.module.css";
   position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  composes: header from "../styles/screen.module.css";
 }
 
 .heading {
+  composes: heading from "../styles/screen.module.css";
   flex: 1;
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
 }
 
 .toolbar {

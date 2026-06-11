@@ -28,12 +28,15 @@ async fn login(
     jar: SignedCookieJar<Key>,
     Json(req): Json<LoginRequest>,
 ) -> AppResult<impl IntoResponse> {
+    tracing::debug!(username = %req.username, "POST /auth/login");
     let user_id = authenticate(&state.pool, &req.username, &req.password).await?;
-    let jar = jar.add(refresh_cookie(user_id));
+    tracing::debug!(username = %req.username, "login ok");
+    let jar = jar.add(refresh_cookie(user_id, &req.username));
     Ok((StatusCode::NO_CONTENT, jar))
 }
 
 async fn logout(jar: SignedCookieJar<Key>) -> impl IntoResponse {
+    tracing::debug!("POST /auth/logout");
     let jar = jar.add(clear_cookie());
     (StatusCode::NO_CONTENT, jar)
 }
@@ -49,6 +52,7 @@ async fn me(
     user: AuthUser,
     jar: SignedCookieJar<Key>,
 ) -> AppResult<impl IntoResponse> {
+    tracing::debug!(username = %user.1, "GET /auth/me");
     let row: Option<(String,)> = sqlx::query_as("SELECT username FROM users WHERE id = ?")
         .bind(user.0 .0.to_string())
         .fetch_optional(&state.pool)
@@ -56,7 +60,7 @@ async fn me(
     let Some((username,)) = row else {
         return Err(AppError::Unauthorized);
     };
-    let jar = jar.add(refresh_cookie(user.0));
+    let jar = jar.add(refresh_cookie(user.0, &username));
     let _ = COOKIE_NAME;
     Ok((
         jar,

@@ -4,7 +4,7 @@ use sqlx::SqliteConnection;
 use uuid::Uuid;
 
 use crate::error::{AppError, AppResult};
-use crate::models::{project, schedule};
+use crate::models::{project, schedule, settings};
 use crate::rev;
 use crate::types::common::Revision;
 use crate::types::ops::{Model, ModelRef, Operation, Rejection, Snapshot, SyncOps, SyncResult};
@@ -25,6 +25,7 @@ pub async fn snapshot(
         items: schedule::select_items(conn, user, since).await?,
         bindings: schedule::select_bindings(conn, user, since).await?,
         templates: schedule::select_templates(conn, user, since).await?,
+        settings: settings::select_settings(conn, user, since).await?,
     })
 }
 
@@ -106,6 +107,7 @@ async fn upsert(
             require(schedule::owns_schedule(conn, user, t.schedule_id).await?)?;
             schedule::upsert_template(conn, user, t, new_rev).await
         }
+        Model::Settings(s) => settings::upsert_settings(conn, user, s, new_rev).await,
     }
 }
 
@@ -129,6 +131,7 @@ async fn delete(
             schedule::tombstone_binding(conn, user, date, new_rev).await
         }
         ModelRef::Template(id) => schedule::tombstone_template(conn, user, *id, new_rev).await,
+        ModelRef::Settings(_) => settings::tombstone_settings(conn, user, new_rev).await,
     }
 }
 
@@ -202,6 +205,12 @@ async fn probe(
                     .fetch_optional(&mut *conn)
                     .await?
             }
+            ModelRef::Settings(id) => {
+                sqlx::query_as("SELECT updated_rev, user_id FROM user_settings WHERE user_id = ?")
+                    .bind(id.0.to_string())
+                    .fetch_optional(&mut *conn)
+                    .await?
+            }
         };
     Ok(row.map(|(r, owner)| (r, owner == user.to_string())))
 }
@@ -220,6 +229,7 @@ fn op_ref(op: &Operation) -> ModelRef {
             Model::ScheduleItem(i) => ModelRef::ScheduleItem(i.id),
             Model::ScheduleBinding(b) => ModelRef::ScheduleBinding(b.date.clone()),
             Model::Template(t) => ModelRef::Template(t.schedule_id),
+            Model::Settings(s) => ModelRef::Settings(s.user_id),
         },
     }
 }
@@ -235,5 +245,6 @@ fn ref_key(r: &ModelRef) -> String {
         ModelRef::ScheduleItem(id) => format!("item:{}", id.0),
         ModelRef::ScheduleBinding(date) => format!("binding:{date}"),
         ModelRef::Template(id) => format!("template:{}", id.0),
+        ModelRef::Settings(id) => format!("settings:{}", id.0),
     }
 }

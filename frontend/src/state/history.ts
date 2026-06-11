@@ -4,7 +4,8 @@ import type { Operation } from "@bindings/Operation";
 
 // Undo/redo are kept per editing context so a project edit can't undo a
 // schedule edit. Each stack entry is an inverse op batch (see commit.ts).
-export type Context = "schedule" | "project";
+// "settings" mutations sync through the same path but have no undo UI.
+export type Context = "schedule" | "project" | "settings";
 
 interface Stacks {
   undo: Operation[][];
@@ -13,9 +14,11 @@ interface Stacks {
 
 const scheduleStacks = signal<Stacks>({ undo: [], redo: [] });
 const projectStacks = signal<Stacks>({ undo: [], redo: [] });
+const settingsStacks = signal<Stacks>({ undo: [], redo: [] });
 
 function stackOf(context: Context) {
-  return context === "schedule" ? scheduleStacks : projectStacks;
+  if (context === "schedule") return scheduleStacks;
+  return context === "project" ? projectStacks : settingsStacks;
 }
 
 // A fresh edit: push its inverse and drop the redo branch.
@@ -51,10 +54,11 @@ export function popRedo(context: Context): Operation[] | null {
   return top;
 }
 
-// Discard both contexts' stacks on logout.
+// Discard every context's stacks on logout.
 export function clear(): void {
   scheduleStacks.value = { undo: [], redo: [] };
   projectStacks.value = { undo: [], redo: [] };
+  settingsStacks.value = { undo: [], redo: [] };
 }
 
 export const canUndo = (context: Context) =>

@@ -7,6 +7,8 @@ import * as db from "./db";
 export interface Account {
   id: string;
   username: string;
+  // Epoch ms of the last successful sync on this device; absent until first sync.
+  lastSyncedAt?: number;
 }
 
 const KEY = "schedule.accounts";
@@ -25,6 +27,17 @@ export function list(): Account[] {
 export function remember(account: Account): void {
   const next = [...list().filter((a) => a.id !== account.id), account];
   save(next);
+}
+
+// Stamp an account's last successful sync, preserving registry order.
+export function touch(id: string): void {
+  let changed = false;
+  const next = list().map((a) => {
+    if (a.id !== id) return a;
+    changed = true;
+    return { ...a, lastSyncedAt: Date.now() };
+  });
+  if (changed) save(next);
 }
 
 // Forget an account: drop it from the registry and delete its cached database.

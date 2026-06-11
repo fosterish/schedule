@@ -36,6 +36,18 @@ export const scheduleViewToday = computed<ScheduleView>(() =>
   ),
 );
 
+// Same view, but reads the clock untracked so it only recomputes when the
+// schedule content changes. Reminders snapshot "now" at edit time and must not
+// churn on every tick (which would clear pending reminders mid-flight).
+export const scheduleViewForReminders = computed<ScheduleView>(() =>
+  resolve.today(
+    projectIndex.value,
+    scheduleForDate(todayDate()),
+    scheduleForDate(yesterdayDate()),
+    nowMinute.peek(),
+  ),
+);
+
 // A routed date view, or null when no schedule is bound to that date.
 export function dateView(date: string): ScheduleView | null {
   const bound = scheduleForDate(date);

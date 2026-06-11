@@ -37,7 +37,7 @@ const del = (id: string): Operation => ({ kind: "delete", ref: { kind: "project"
 
 beforeEach(() => {
   base.setBase(
-    { projects: [], tasks: [], dependencies: [], schedules: [], items: [], bindings: [], templates: [] },
+    { projects: [], tasks: [], dependencies: [], schedules: [], items: [], bindings: [], templates: [], settings: [] },
     0,
   );
   pending.value = [];
@@ -74,7 +74,7 @@ describe("undo / redo", () => {
 
   test("undo restores the prior row state of an edit", () => {
     base.setBase(
-      { projects: [project("p1", "Old")], tasks: [], dependencies: [], schedules: [], items: [], bindings: [], templates: [] },
+      { projects: [project("p1", "Old")], tasks: [], dependencies: [], schedules: [], items: [], bindings: [], templates: [], settings: [] },
       0,
     );
     commit([upsert(project("p1", "New"))], "schedule");
@@ -85,7 +85,7 @@ describe("undo / redo", () => {
 
   test("a multi-op batch undoes back to the starting state", () => {
     base.setBase(
-      { projects: [project("p1", "Old")], tasks: [], dependencies: [], schedules: [], items: [], bindings: [], templates: [] },
+      { projects: [project("p1", "Old")], tasks: [], dependencies: [], schedules: [], items: [], bindings: [], templates: [], settings: [] },
       0,
     );
     commit([upsert(project("p1", "Edited")), upsert(project("p2", "Added")), del("p1")], "schedule");

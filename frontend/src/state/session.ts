@@ -5,6 +5,7 @@ import * as api from "@data/api";
 import * as db from "@data/db";
 
 import * as commit from "./commit";
+import * as settings from "./settings";
 import { reset as resetView } from "./uistate";
 import { startSyncLoop, stopSyncLoop } from "./syncer";
 
@@ -38,6 +39,7 @@ export async function beginSession(): Promise<void> {
   if (!current) return;
   loadingData.value = true;
   await db.setActiveUser(current.id);
+  settings.load(current.id);
   accounts.remember(current);
   await commit.hydrate();
   void completeInitialLoad();
@@ -101,5 +103,6 @@ async function detach(): Promise<void> {
   loadingData.value = false;
   commit.reset();
   resetView();
+  settings.reset();
   await db.setActiveUser(null);
 }

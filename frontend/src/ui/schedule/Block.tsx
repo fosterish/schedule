@@ -27,6 +27,10 @@ interface Props {
   raw: ScheduleItem | undefined;
   top: number;
   height: number;
+  // Times for the label: a live drag/resize preview when active, else the item's
+  // resolved start/end. Kept separate so the tag tracks the edge before commit.
+  tagStart: number;
+  tagEnd: number;
   selected: boolean;
   dragging: boolean;
   onSelect: (focus: Focus) => void;
@@ -43,6 +47,8 @@ export function Block({
   raw,
   top,
   height,
+  tagStart,
+  tagEnd,
   selected,
   dragging,
   onSelect,
@@ -129,7 +135,7 @@ export function Block({
       )}
 
       <div class={s.timeTag}>
-        {`${fmtClock(item.start)} \u2013 ${fmtClock(item.end)} (${fmtDurationHuman(item.end - item.start)})`}
+        {`${fmtClock(tagStart)} \u2013 ${fmtClock(tagEnd)} (${fmtDurationHuman(tagEnd - tagStart)})`}
       </div>
 
       {!selected && !dragging && onResizeStart && raw?.bounds.start != null && (

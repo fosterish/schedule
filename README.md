@@ -83,6 +83,9 @@ from the repo root (e.g. `cargo run --bin schedule`).
 | `FRONTEND_DIR` | `frontend`                        | Directory served at `/` (use `frontend/dist` in prod). |
 | `BIND_ADDR`    | `127.0.0.1:3000`                  | Listen address.                                        |
 | `RUST_LOG`     | `schedule=debug,tower_http=info`  | Tracing filter.                                        |
+| `VAPID_PUBLIC_KEY`  | unset                        | Web Push key. All three VAPID vars required, else push off. |
+| `VAPID_PRIVATE_KEY` | unset                        | Web Push key. `npx web-push generate-vapid-keys`.      |
+| `VAPID_SUBJECT`     | unset                        | Contact URI for push services (`mailto:` or `https:`). |
 
 ## Docker
 

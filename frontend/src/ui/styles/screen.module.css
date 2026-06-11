@@ -1,0 +1,27 @@
+/* Shared screen scaffold + header bar, composed by each screen so their heights,
+   padding, and spacing stay in sync. Screens with a wrapping title (a textarea)
+   override `align-items` to flex-start; the rest center their heading. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.heading {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  /* Match the header buttons' control-height so every header is the same height. */
+  line-height: var(--control-h);
+  /* Align with the Schedule/Project title, whose text is inset by its editable
+     field's padding (6px) + transparent border (1px). */
+  padding-left: 7px;
+}

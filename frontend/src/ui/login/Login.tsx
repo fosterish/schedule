@@ -7,6 +7,20 @@ import * as session from "@state/session";
 import { TrashButton } from "../components/TrashButton";
 import s from "./Login.module.css";
 
+// Last-synced date, shown only when it wasn't today (today needs no reminder).
+function syncedLabel(at: number | undefined): string | null {
+  if (at == null) return null;
+  const d = new Date(at);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) return null;
+  const year = d.getFullYear() === now.getFullYear() ? undefined : "numeric";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year });
+}
+
 export function Login(): JSX.Element {
   const { route } = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -79,14 +93,18 @@ export function Login(): JSX.Element {
       {known.length > 0 && (
         <div class={s.accounts}>
           <p class={s.accountsLabel}>On this device</p>
-          {known.map((a) => (
-            <div key={a.id} class={s.account}>
-              <button type="button" class={s.accountName} onClick={() => pick(a.username)}>
-                {a.username}
-              </button>
-              <TrashButton label={`Forget ${a.username}`} onClick={() => forget(a.id)} />
-            </div>
-          ))}
+          {known.map((a) => {
+            const synced = syncedLabel(a.lastSyncedAt);
+            return (
+              <div key={a.id} class={s.account}>
+                <button type="button" class={s.accountName} onClick={() => pick(a.username)}>
+                  {a.username}
+                </button>
+                {synced && <span class={s.synced}>{synced}</span>}
+                <TrashButton label={`Forget ${a.username}`} onClick={() => forget(a.id)} />
+              </div>
+            );
+          })}
         </div>
       )}
     </form>

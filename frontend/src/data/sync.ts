@@ -6,6 +6,7 @@ import type { Snapshot } from "@bindings/Snapshot";
 import type { SyncResult } from "@bindings/SyncResult";
 import * as ops from "@lib/ops";
 
+import * as accounts from "./accounts";
 import * as api from "./api";
 import * as db from "./db";
 import type { BaseTables, PendingEntry } from "./db";
@@ -24,7 +25,10 @@ export interface FlushOutcome {
 // authoritative state for any rejected ops. The single entry point.
 export async function synchronize(): Promise<PullOutcome> {
   await flush();
-  return pull();
+  const outcome = await pull();
+  const id = db.activeUser();
+  if (id) accounts.touch(id);
+  return outcome;
 }
 
 // Push the pending queue; drop the resolved ops. Does not advance the version
@@ -68,6 +72,7 @@ export function mergeSnapshot(base: BaseTables, delta: Snapshot): BaseTables {
     items: mergeTable(base.items, delta.items, (i) => i.id),
     bindings: mergeTable(base.bindings, delta.bindings, (b) => b.date),
     templates: mergeTable(base.templates, delta.templates, (t) => t.scheduleId),
+    settings: mergeTable(base.settings, delta.settings, (s) => s.userId),
   };
 }
 
@@ -121,5 +126,6 @@ function tablesOf(s: Snapshot): BaseTables {
     items: s.items,
     bindings: s.bindings,
     templates: s.templates,
+    settings: s.settings,
   };
 }

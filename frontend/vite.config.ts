@@ -26,9 +26,14 @@ export default defineConfig(({ mode }) => ({
       ? []
       : [
           VitePWA({
-            registerType: "prompt",
-            devOptions: { enabled: false },
-            workbox: { globPatterns: ["**/*.{js,css,html,svg,png,woff2}"] },
+            strategies: "injectManifest",
+            srcDir: "src",
+            filename: "sw.ts",
+            registerType: "autoUpdate",
+            // Register the worker in dev too (it's a TS module), so push can be
+            // tested against `npm run dev`. The injected precache manifest is empty.
+            devOptions: { enabled: true, type: "module" },
+            injectManifest: { globPatterns: ["**/*.{js,css,html,svg,png,woff2}"] },
             manifest: {
               name: "Schedule",
               short_name: "Schedule",

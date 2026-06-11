@@ -74,3 +74,9 @@
   border: none;
   cursor: pointer;
 }
+
+.synced {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted);
+}

@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::common::{ProjectId, Revision, ScheduleId, ScheduleItemId, TaskId};
+use super::common::{ProjectId, Revision, ScheduleId, ScheduleItemId, TaskId, UserId};
 use super::project::{Dependency, Project, Task};
 use super::schedule::{Schedule, ScheduleBinding, ScheduleItem, Template};
+use super::settings::Settings;
 
 /// A full row for some syncable table, each carrying `rev: Revisions`.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -17,6 +18,7 @@ pub enum Model {
     ScheduleItem(ScheduleItem),
     ScheduleBinding(ScheduleBinding),
     Template(Template),
+    Settings(Settings),
 }
 
 /// A typed delete target.
@@ -35,6 +37,8 @@ pub enum ModelRef {
     /// `YYYY-MM-DD`.
     ScheduleBinding(String),
     Template(ScheduleId),
+    /// The user's singleton settings row, keyed by user id.
+    Settings(UserId),
 }
 
 /// `Delete` is soft (sets `rev.deleted`).
@@ -64,6 +68,7 @@ pub struct Snapshot {
     pub items: Vec<ScheduleItem>,
     pub bindings: Vec<ScheduleBinding>,
     pub templates: Vec<Template>,
+    pub settings: Vec<Settings>,
 }
 
 /// `POST /api/sync` body.

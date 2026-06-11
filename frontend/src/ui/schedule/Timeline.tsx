@@ -725,6 +725,8 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
                 raw={rawById.get(item.id)}
                 top={top}
                 height={blockHeight}
+                tagStart={frame ? frame.start : item.start}
+                tagEnd={frame ? frame.end : item.end}
                 selected={selectedId === item.id}
                 dragging={!!isDragged && (drag.moved || drag.touch)}
                 onSelect={(focus) => select(item.id, focus)}

@@ -1,16 +1,16 @@
 .screen {
+  composes: screen from "../styles/screen.module.css";
   position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 
 .header {
-  display: flex;
+  composes: header from "../styles/screen.module.css";
+}
+
+/* The title is a textarea that grows downward when it wraps, so top-align the
+   header row (overrides the shared header's centering). */
+.screen > .header {
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
 }
 
 .titleRow {

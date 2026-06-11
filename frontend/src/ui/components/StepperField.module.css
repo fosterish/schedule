@@ -1,0 +1,41 @@
+/* Spinner sits inside the time field's box, like a native number spinner. */
+.wrap {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Left-aligned so the value's position is fixed by the left padding and never
+   shifts when the spinner shows/hides. Higher specificity than AutoField's
+   `.field` so these win regardless of stylesheet order. */
+.wrap .value {
+  width: 90px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reserve room on the right for the inset spinner. */
+.wrap .stepped {
+  padding-right: 18px;
+}
+
+/* Optional visible box, e.g. when used as a form control in settings. */
+.wrap .bordered {
+  height: var(--control-h);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.wrap .bordered:focus {
+  border-color: var(--accent);
+}
+
+.slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 3px;
+  display: flex;
+  align-items: center;
+}

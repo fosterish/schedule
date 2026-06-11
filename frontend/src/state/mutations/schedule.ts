@@ -26,6 +26,7 @@ import {
 } from "../pending";
 import { user } from "../session";
 import { localRev, newId } from "../mint";
+import { defaultEnd, defaultStart } from "../settings";
 import { pushToast } from "../toast";
 import { fitScheduleId, panToSelected } from "../uistate";
 
@@ -250,7 +251,8 @@ export function createScheduleForDate(date: string): ScheduleId | null {
   const userId = user.value?.id;
   if (userId == null) return null;
   const id = newId();
-  const schedule: Schedule = { id, userId, name: "", start: layout.DEFAULT_START, end: layout.DEFAULT_END, rev: localRev() };
+  const { start, end } = defaultRange();
+  const schedule: Schedule = { id, userId, name: "", start, end, rev: localRev() };
   const binding: ScheduleBinding = { userId, date, scheduleId: id, rev: localRev() };
   commit(
     [
@@ -292,7 +294,8 @@ export function createTemplate(): ScheduleId | null {
   const userId = user.value?.id;
   if (userId == null) return null;
   const id = newId();
-  const schedule: Schedule = { id, userId, name: "", start: layout.DEFAULT_START, end: layout.DEFAULT_END, rev: localRev() };
+  const { start, end } = defaultRange();
+  const schedule: Schedule = { id, userId, name: "", start, end, rev: localRev() };
   commit(
     [
       { kind: "upsert", model: { kind: "schedule", ...schedule } },
@@ -356,6 +359,14 @@ function scheduleUpsert(row: Schedule): Operation {
 function scheduleSpan(scheduleId: ScheduleId): layout.Span | null {
   const s = effectiveSchedules.value.find((x) => x.id === scheduleId);
   return s ? { start: s.start, end: s.end } : null;
+}
+
+// The user's default range, clamped to the schedule DB invariants (start in
+// [0,1439], 0 < end-start <= 1440) so a stored preference can never reject.
+function defaultRange(): { start: number; end: number } {
+  const start = clampInt(defaultStart.value, 0, 1439);
+  const end = clampInt(defaultEnd.value, start + 1, start + DAY_MINUTES);
+  return { start, end };
 }
 
 // New bounds that grow the window outward to admit a fixed item anchor, clamped

@@ -21,6 +21,7 @@ const effective = computed<Snapshot>(() => {
     items: [...base.items.value],
     bindings: [...base.bindings.value],
     templates: [...base.templates.value],
+    settings: [...base.settings.value],
   };
   for (const op of pending.value) ops.apply(op, snap);
   return snap;
@@ -33,6 +34,7 @@ export const effectiveSchedules = computed(() => effective.value.schedules);
 export const effectiveItems = computed(() => effective.value.items);
 export const effectiveBindings = computed(() => effective.value.bindings);
 export const effectiveTemplates = computed(() => effective.value.templates);
+export const effectiveSettings = computed(() => effective.value.settings);
 
 // The effective snapshot, for computing op inverses at commit time.
 export function effectiveSnapshot(): Snapshot {

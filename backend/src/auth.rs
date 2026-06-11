@@ -22,16 +22,20 @@ pub const SESSION_TTL_DAYS: i64 = 30;
 pub struct SessionPayload {
     /// UUID, hyphenated.
     pub user_id: String,
+    /// Login name, carried so requests can be logged without a DB lookup.
+    #[serde(default)]
+    pub username: String,
     /// Unix-seconds expiry timestamp.
     pub exp: i64,
 }
 
 impl SessionPayload {
-    pub fn new(user_id: UserId) -> Self {
+    pub fn new(user_id: UserId, username: String) -> Self {
         let exp =
             (OffsetDateTime::now_utc() + time::Duration::days(SESSION_TTL_DAYS)).unix_timestamp();
         Self {
             user_id: user_id.0.to_string(),
+            username,
             exp,
         }
     }
@@ -86,8 +90,9 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
 }
 
 /// Axum extractor that requires an authenticated, non-expired session.
-#[derive(Debug, Clone, Copy)]
-pub struct AuthUser(pub UserId);
+/// Carries the user id and the (cookie-supplied) username for logging.
+#[derive(Debug, Clone)]
+pub struct AuthUser(pub UserId, pub String);
 
 impl<S> FromRequestParts<S> for AuthUser
 where
@@ -106,13 +111,13 @@ where
             return Err(AppError::Unauthorized);
         }
         let id = Uuid::parse_str(&payload.user_id).map_err(|_| AppError::Unauthorized)?;
-        Ok(AuthUser(UserId(id)))
+        Ok(AuthUser(UserId(id), payload.username))
     }
 }
 
 /// Builds a fresh cookie with a refreshed session; callers add it to the returned jar.
-pub fn refresh_cookie<'a>(user_id: UserId) -> Cookie<'a> {
-    make_cookie(encode_session(&SessionPayload::new(user_id)))
+pub fn refresh_cookie<'a>(user_id: UserId, username: &str) -> Cookie<'a> {
+    make_cookie(encode_session(&SessionPayload::new(user_id, username.to_string())))
 }
 
 pub async fn authenticate(

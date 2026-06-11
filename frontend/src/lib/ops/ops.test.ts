@@ -16,6 +16,7 @@ function snapshot(over: Partial<Snapshot> = {}): Snapshot {
     items: [],
     bindings: [],
     templates: [],
+    settings: [],
     ...over,
   };
 }

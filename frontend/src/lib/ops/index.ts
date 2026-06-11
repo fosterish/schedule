@@ -48,6 +48,8 @@ export function refOf(model: Model): ModelRef {
       return { kind: "scheduleBinding", id: model.date };
     case "template":
       return { kind: "template", id: model.scheduleId };
+    case "settings":
+      return { kind: "settings", id: model.userId };
     default: {
       const never: never = model;
       return never;
@@ -82,6 +84,9 @@ function applyUpsert(snap: Snapshot, model: Model): void {
     case "template":
       put(snap.templates, withoutKind(model), (r) => r.scheduleId === model.scheduleId);
       break;
+    case "settings":
+      put(snap.settings, withoutKind(model), (r) => r.userId === model.userId);
+      break;
     default: {
       const never: never = model;
       void never;
@@ -113,6 +118,9 @@ function applyDelete(snap: Snapshot, ref: ModelRef): void {
       break;
     case "template":
       snap.templates = snap.templates.filter((r) => r.scheduleId !== ref.id);
+      break;
+    case "settings":
+      snap.settings = snap.settings.filter((r) => r.userId !== ref.id);
       break;
     default: {
       const never: never = ref;
@@ -153,6 +161,10 @@ function findModel(snap: Snapshot, ref: ModelRef): Model | null {
     case "template": {
       const r = snap.templates.find((x) => x.scheduleId === ref.id);
       return r ? { kind: "template", ...r } : null;
+    }
+    case "settings": {
+      const r = snap.settings.find((x) => x.userId === ref.id);
+      return r ? { kind: "settings", ...r } : null;
     }
     default: {
       const never: never = ref;

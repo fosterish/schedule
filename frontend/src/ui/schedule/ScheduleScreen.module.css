@@ -1,15 +1,15 @@
 .screen {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  composes: screen from "../styles/screen.module.css";
 }
 
 .header {
-  display: flex;
+  composes: header from "../styles/screen.module.css";
+}
+
+/* The title is a textarea that grows downward when it wraps, so top-align the
+   header row (overrides the shared header's centering). */
+.screen > .header {
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
 }
 
 .subheader {
@@ -84,6 +84,15 @@
   font-weight: 600;
   line-height: 24px;
   word-break: break-word;
+}
+
+/* The title is a textarea: line-height 24 + AutoField's 4px block padding + 1px
+   border = 34px, 2px past the 32px control-height that sizes the other screens'
+   headers. Trim its block padding so a single-line title matches that height
+   (and multi-line still grows by whole 24px lines). Descendant selector to
+   reliably win over AutoField's `.field` padding. */
+.titleRow .title {
+  padding-block: 3px;
 }
 
 /* Day mode with a title: let the field hug its text so the date tag sits just

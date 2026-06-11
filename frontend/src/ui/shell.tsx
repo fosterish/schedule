@@ -13,6 +13,7 @@ import {
 } from "@state/uistate";
 
 import { Toaster } from "./components/Toaster";
+import { GearIcon } from "./components/icons";
 import s from "./shell.module.css";
 
 // App chrome only: the tab bar and user menu. One route mounts at a time inside
@@ -41,6 +42,7 @@ export function Shell({ children }: { children: ComponentChildren }): JSX.Elemen
   const onSchedule = matches(path, ["/today", "/date", "/template"]);
   const onProjects = matches(path, ["/projects"]);
   const onCalendar = matches(path, ["/calendar"]);
+  const onSettings = matches(path, ["/settings"]);
 
   async function logout(): Promise<void> {
     await session.logout();
@@ -63,6 +65,16 @@ export function Shell({ children }: { children: ComponentChildren }): JSX.Elemen
         <Tab label="Schedule" active={onSchedule} onClick={() => route(lastScheduleRoute.value ?? "/today")} />
         <Tab label="Projects" active={onProjects} onClick={() => route(lastProjectsRoute.value ?? "/projects")} />
         <Tab label="Calendar" active={onCalendar} onClick={() => route("/calendar")} />
+        <button
+          type="button"
+          class={onSettings ? `${s.tab} ${s.active}` : s.tab}
+          aria-current={onSettings}
+          aria-label="Settings"
+          title="Settings"
+          onClick={() => route("/settings")}
+        >
+          <GearIcon />
+        </button>
         <span class={s.spacer} />
         <span class={s.wideUser}>{userActions}</span>
       </nav>

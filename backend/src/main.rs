@@ -10,7 +10,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 
-use schedule::{db, load_env, routes, AppState};
+use schedule::push::PushConfig;
+use schedule::{db, load_env, push, routes, AppState};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -42,10 +43,16 @@ async fn main() -> anyhow::Result<()> {
         anyhow::bail!("frontend directory not found: {}", frontend_dir.display());
     }
 
+    let push_config = PushConfig::from_env().map(Arc::new);
+    if push_config.is_none() {
+        tracing::warn!("VAPID env vars unset; push notifications disabled");
+    }
+
     let state = AppState {
         pool,
         cookie_key,
         frontend_dir: Arc::new(frontend_dir.clone()),
+        push: push_config,
     };
 
     let index = frontend_dir.join("index.html");
@@ -65,9 +72,16 @@ async fn main() -> anyhow::Result<()> {
         no_cache.layer(ServeDir::new(&frontend_dir).fallback(ServeFile::new(index)));
 
     let api = Router::new()
-        .route("/health", get(|| async { "ok" }))
+        .route(
+            "/health",
+            get(|| async {
+                tracing::debug!("GET /health");
+                "ok"
+            }),
+        )
         .merge(routes::auth_routes())
         .merge(routes::sync_routes())
+        .merge(routes::push_routes())
         .with_state(state.clone());
 
     let app = Router::new()
@@ -80,10 +94,31 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "127.0.0.1:3000".to_string())
         .parse()?;
 
+    // Broadcast one shutdown signal to both the HTTP server and the push loop.
+    let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
+    {
+        let tx = shutdown_tx.clone();
+        tokio::spawn(async move {
+            shutdown_signal().await;
+            let _ = tx.send(());
+        });
+    }
+
+    if let Some(config) = state.push.clone() {
+        tokio::spawn(push::run(
+            state.pool.clone(),
+            config,
+            shutdown_tx.subscribe(),
+        ));
+    }
+
     tracing::info!("listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
+    let mut shutdown_rx = shutdown_tx.subscribe();
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(async move {
+            let _ = shutdown_rx.recv().await;
+        })
         .await?;
     Ok(())
 }

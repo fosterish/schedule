@@ -1,4 +1,4 @@
-import { deleteDB, openDB, type DBSchema, type IDBPDatabase } from "idb";
+import { deleteDB, openDB, type DBSchema, type IDBPDatabase, type StoreNames } from "idb";
 
 import type { Dependency } from "@bindings/Dependency";
 import type { Operation } from "@bindings/Operation";
@@ -6,6 +6,7 @@ import type { Project } from "@bindings/Project";
 import type { Schedule } from "@bindings/Schedule";
 import type { ScheduleBinding } from "@bindings/ScheduleBinding";
 import type { ScheduleItem } from "@bindings/ScheduleItem";
+import type { Settings } from "@bindings/Settings";
 import type { Task } from "@bindings/Task";
 import type { Template } from "@bindings/Template";
 
@@ -18,6 +19,7 @@ export interface BaseTables {
   items: ScheduleItem[];
   bindings: ScheduleBinding[];
   templates: Template[];
+  settings: Settings[];
 }
 
 // A queued op with its insertion sequence (the pending store's autoIncrement key).
@@ -34,6 +36,7 @@ interface ScheduleDB extends DBSchema {
   items: { key: string; value: ScheduleItem };
   bindings: { key: string; value: ScheduleBinding };
   templates: { key: string; value: Template };
+  settings: { key: string; value: Settings };
   pending: { key: number; value: Operation };
   meta: { key: string; value: { key: string; value: number } };
 }
@@ -46,6 +49,7 @@ const BASE_STORES = [
   "items",
   "bindings",
   "templates",
+  "settings",
 ] as const;
 
 // Each user's cache lives in its own database, so accounts coexist on one device
@@ -64,6 +68,11 @@ export async function setActiveUser(userId: string | null): Promise<void> {
   activeUserId = userId;
 }
 
+// The user whose cache is currently attached, or null when logged out.
+export function activeUser(): string | null {
+  return activeUserId;
+}
+
 // Drop a remembered account's cache entirely ("forget me").
 export async function forgetUser(userId: string): Promise<void> {
   if (userId === activeUserId) await setActiveUser(null);
@@ -72,17 +81,26 @@ export async function forgetUser(userId: string): Promise<void> {
 
 function database(): Promise<IDBPDatabase<ScheduleDB>> {
   if (activeUserId == null) throw new Error("db accessed with no active user");
-  connection ??= openDB<ScheduleDB>(dbName(activeUserId), 1, {
+  connection ??= openDB<ScheduleDB>(dbName(activeUserId), 2, {
+    // Idempotent per store so the v1→v2 bump (adding `settings`) only creates
+    // what's missing.
     upgrade(db) {
-      db.createObjectStore("projects", { keyPath: "id" });
-      db.createObjectStore("tasks", { keyPath: "id" });
-      db.createObjectStore("dependencies", { keyPath: ["blockedId", "blockerId"] });
-      db.createObjectStore("schedules", { keyPath: "id" });
-      db.createObjectStore("items", { keyPath: "id" });
-      db.createObjectStore("bindings", { keyPath: "date" });
-      db.createObjectStore("templates", { keyPath: "scheduleId" });
-      db.createObjectStore("pending", { autoIncrement: true });
-      db.createObjectStore("meta", { keyPath: "key" });
+      const ensure = (
+        name: StoreNames<ScheduleDB>,
+        options: IDBObjectStoreParameters,
+      ): void => {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, options);
+      };
+      ensure("projects", { keyPath: "id" });
+      ensure("tasks", { keyPath: "id" });
+      ensure("dependencies", { keyPath: ["blockedId", "blockerId"] });
+      ensure("schedules", { keyPath: "id" });
+      ensure("items", { keyPath: "id" });
+      ensure("bindings", { keyPath: "date" });
+      ensure("templates", { keyPath: "scheduleId" });
+      ensure("settings", { keyPath: "userId" });
+      ensure("pending", { autoIncrement: true });
+      ensure("meta", { keyPath: "key" });
     },
   });
   return connection;
@@ -90,7 +108,7 @@ function database(): Promise<IDBPDatabase<ScheduleDB>> {
 
 export async function loadBase(): Promise<BaseTables> {
   const db = await database();
-  const [projects, tasks, dependencies, schedules, items, bindings, templates] =
+  const [projects, tasks, dependencies, schedules, items, bindings, templates, settings] =
     await Promise.all([
       db.getAll("projects"),
       db.getAll("tasks"),
@@ -99,8 +117,9 @@ export async function loadBase(): Promise<BaseTables> {
       db.getAll("items"),
       db.getAll("bindings"),
       db.getAll("templates"),
+      db.getAll("settings"),
     ]);
-  return { projects, tasks, dependencies, schedules, items, bindings, templates };
+  return { projects, tasks, dependencies, schedules, items, bindings, templates, settings };
 }
 
 // Replace the persisted base wholesale (sync produces the merged tables).
@@ -115,6 +134,7 @@ export async function persistBase(base: BaseTables): Promise<void> {
     refill(tx.objectStore("items"), base.items),
     refill(tx.objectStore("bindings"), base.bindings),
     refill(tx.objectStore("templates"), base.templates),
+    refill(tx.objectStore("settings"), base.settings),
   ]);
   await tx.done;
 }

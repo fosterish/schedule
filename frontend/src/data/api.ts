@@ -88,3 +88,28 @@ export const getSnapshot = (since: number): Promise<Snapshot> =>
 
 export const postSync = (body: SyncOps): Promise<SyncResult> =>
   request("POST", "/api/sync", body);
+
+// Null when the server has no VAPID keys configured (push disabled).
+export const vapidPublicKey = async (): Promise<string | null> => {
+  try {
+    const { key } = await request<{ key: string }>("GET", "/api/push/vapid-public-key");
+    return key;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+};
+
+export const subscribePush = (subscription: PushSubscriptionJSON): Promise<void> =>
+  request("POST", "/api/push/subscribe", subscription);
+
+export const unsubscribePush = (endpoint: string): Promise<void> =>
+  request("DELETE", "/api/push/subscribe", { endpoint });
+
+export interface ReminderUpload {
+  fireAtMs: number;
+  payload: unknown;
+}
+
+export const putReminders = (endpoint: string, reminders: ReminderUpload[]): Promise<void> =>
+  request("PUT", "/api/push/reminders", { endpoint, reminders });

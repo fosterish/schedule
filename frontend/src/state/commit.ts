@@ -76,5 +76,6 @@ function clone(snap: Snapshot): Snapshot {
     items: [...snap.items],
     bindings: [...snap.bindings],
     templates: [...snap.templates],
+    settings: [...snap.settings],
   };
 }

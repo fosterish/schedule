@@ -35,6 +35,7 @@ function base(over: Partial<BaseTables> = {}): BaseTables {
     items: [],
     bindings: [],
     templates: [],
+    settings: [],
     ...over,
   };
 }

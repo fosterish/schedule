@@ -10,7 +10,7 @@ export function startClock(): () => void {
     nowMinute.value = currentMinute();
   };
   tick();
-  const id = setInterval(tick, 30_000);
+  const id = setInterval(tick, 1_000);
   return () => clearInterval(id);
 }
 

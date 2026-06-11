@@ -9,6 +9,7 @@ import { Loading } from "./components/Loading";
 import { Login } from "./login/Login";
 import { ProjectDetail, ProjectsList } from "./projects";
 import { ScheduleDate, ScheduleTemplate, ScheduleToday } from "./schedule";
+import { Settings } from "./settings";
 import { Shell } from "./shell";
 
 const NotFound = (): JSX.Element => <div style={{ padding: 16 }}>Not found</div>;
@@ -56,6 +57,7 @@ export function App(): JSX.Element {
               <Route path="/projects" component={ProjectsList} />
               <Route path="/projects/:id" component={ProjectDetail} />
               <Route path="/calendar" component={Calendar} />
+              <Route path="/settings" component={Settings} />
               <Route path="/login" component={Login} />
               <Route default component={NotFound} />
             </Router>

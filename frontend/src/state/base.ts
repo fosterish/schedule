@@ -5,6 +5,7 @@ import type { Project } from "@bindings/Project";
 import type { Schedule } from "@bindings/Schedule";
 import type { ScheduleBinding } from "@bindings/ScheduleBinding";
 import type { ScheduleItem } from "@bindings/ScheduleItem";
+import type { Settings } from "@bindings/Settings";
 import type { Task } from "@bindings/Task";
 import type { Template } from "@bindings/Template";
 import type { BaseTables } from "@data/db";
@@ -19,6 +20,7 @@ export const schedules = signal<Schedule[]>([]);
 export const items = signal<ScheduleItem[]>([]);
 export const bindings = signal<ScheduleBinding[]>([]);
 export const templates = signal<Template[]>([]);
+export const settings = signal<Settings[]>([]);
 
 // The user's revision cursor: the last synced version.
 export const version = signal(0);
@@ -32,6 +34,7 @@ export function setBase(base: BaseTables, ver: number): void {
     items.value = base.items;
     bindings.value = base.bindings;
     templates.value = base.templates;
+    settings.value = base.settings;
     version.value = ver;
   });
 }
@@ -44,6 +47,7 @@ const EMPTY: BaseTables = {
   items: [],
   bindings: [],
   templates: [],
+  settings: [],
 };
 
 // Drop all rows on logout so the next account never sees the previous one's data.

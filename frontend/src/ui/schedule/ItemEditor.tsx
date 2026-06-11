@@ -4,10 +4,9 @@ import type { ScheduleItem } from "@bindings/ScheduleItem";
 import { fmtClock, fmtDurationHuman, parseClockToMin, parseDurationToMin } from "@lib/timefmt";
 import * as scheduleOps from "@state/mutations/schedule";
 
-import { AutoField } from "@ui/components/AutoField";
 import { ColorSwatch } from "@ui/components/ColorSwatch";
 import { RadioBar } from "@ui/components/RadioBar";
-import { Stepper } from "@ui/components/Stepper";
+import { StepperField } from "@ui/components/StepperField";
 import { AnchorIcon } from "@ui/components/icons";
 
 import s from "./ItemEditor.module.css";
@@ -155,22 +154,13 @@ function AnchorRow({
   return (
     <div class={s.row}>
       <span class={s.label}>{label}</span>
-      <div class={s.valueWrap}>
-        <AutoField
-          value={value}
-          onCommit={onEdit}
-          ariaLabel={label}
-          disabled={disabled}
-          selectOnFocus
-          commitOnBlur
-          class={stepper ? `${s.anchorValue} ${s.anchorValueFixed}` : s.anchorValue!}
-        />
-        {stepper && (
-          <span class={s.stepperSlot}>
-            <Stepper onStep={onStep} />
-          </span>
-        )}
-      </div>
+      <StepperField
+        value={value}
+        onCommit={onEdit}
+        ariaLabel={label}
+        disabled={disabled}
+        onStep={stepper ? onStep : undefined}
+      />
       {!hideToggle && (
         <button
           type="button"
