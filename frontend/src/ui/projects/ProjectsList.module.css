@@ -106,6 +106,8 @@
   height: 14px;
   border-radius: 50%;
   flex: none;
+  /* Row is top-aligned for multi-line names; nudge the dot onto the first line. */
+  margin-top: 3px;
 }
 
 .name {

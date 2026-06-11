@@ -9,7 +9,7 @@ import s from "./HistoryControls.module.css";
 
 // Undo/redo for one editing context (schedule or project); button states track
 // that context's stacks only.
-export function HistoryControls({ context }: { context: history.Context }): JSX.Element {
+export function HistoryControls({ context, disabled = false }: { context: history.Context; disabled?: boolean }): JSX.Element {
   const canUndo = useMemo(() => history.canUndo(context), [context]);
   const canRedo = useMemo(() => history.canRedo(context), [context]);
   return (
@@ -18,7 +18,7 @@ export function HistoryControls({ context }: { context: history.Context }): JSX.
         type="button"
         class={s.btn}
         title="Undo"
-        disabled={!canUndo.value}
+        disabled={disabled || !canUndo.value}
         onClick={() => commit.undo(context)}
       >
         <UndoIcon />
@@ -27,7 +27,7 @@ export function HistoryControls({ context }: { context: history.Context }): JSX.
         type="button"
         class={s.btn}
         title="Redo"
-        disabled={!canRedo.value}
+        disabled={disabled || !canRedo.value}
         onClick={() => commit.redo(context)}
       >
         <RedoIcon />

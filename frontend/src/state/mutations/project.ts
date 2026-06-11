@@ -12,6 +12,7 @@ import { commit } from "../commit";
 import { effectiveDependencies, effectiveProjects, effectiveTasks } from "../pending";
 import { localRev, newId } from "../mint";
 import { user } from "../session";
+import { focusProjectId } from "../uistate";
 
 // Project/task/dependency mutations under the "projects" undo context. Composite
 // intents mint ids/keys here; pure ordering and graph logic lives in lib/project.
@@ -36,6 +37,7 @@ export function createProject(color: Color): ProjectId | null {
     rev: localRev(),
   };
   commit([{ kind: "upsert", model: { kind: "project", ...row } }], CTX);
+  focusProjectId.value = id;
   return id;
 }
 

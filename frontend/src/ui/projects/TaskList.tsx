@@ -56,6 +56,12 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
   const [incomplete, completed] = proj.tasks.partitionByCompletion(visible);
   const edges = proj.graph.edgesFromDeps(deps);
 
+  const doneIds = new Set(all.filter((t) => t.completedAt != null).map((t) => t.id));
+  const blockedCounts = new Map<TaskId, number>();
+  for (const d of deps) {
+    if (!doneIds.has(d.blockerId)) blockedCounts.set(d.blockedId, (blockedCounts.get(d.blockedId) ?? 0) + 1);
+  }
+
   const rowRefs = useRef(new Map<TaskId, HTMLDivElement>());
   const [drag, setDrag] = useState<DragState | null>(null);
   const selectedId = uistate.selectedTask.value;
@@ -108,6 +114,7 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
     const selected = selectedId === t.id;
     const dragging = drag?.id === t.id && drag.moved;
     const offset = offsets?.get(t.id);
+    const blockedBy = blockedCounts.get(t.id) ?? 0;
     return (
       <div
         key={t.id}
@@ -152,6 +159,7 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
               {t.name || "Untitled task"}
             </span>
           )}
+          {!selected && blockedBy > 0 && <span class={s.blocked}>blocked by {blockedBy}</span>}
           {draggable && !selected && (
             <button
               type="button"

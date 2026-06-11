@@ -21,17 +21,23 @@ import s from "./ProjectDetail.module.css";
 export function ProjectDetail({ id }: { id?: string }): JSX.Element | null {
   const { path, route } = useLocation();
   const [filter, setFilter] = useState("");
+  // Freeze whether this is the just-created project, then clear the one-shot flag.
+  const [focusTitle] = useState(() => uistate.focusProjectId.value === id);
   useEffect(() => {
     uistate.lastProjectsRoute.value = path;
     uistate.selectTask(null);
   }, [path]);
+  useEffect(() => {
+    if (uistate.focusProjectId.value === id) uistate.focusProjectId.value = null;
+  }, [id]);
 
   if (!id) return null;
-  const project = effectiveProjects.value.find((p) => p.id === id);
-  if (!project) return <div class={s.centered}>Project not found.</div>;
+  const project = effectiveProjects.value.find((p) => p.id === id) ?? null;
+  const notFound = project == null;
 
-  const hasCompleted = effectiveTasks.value.some((t) => t.projectId === project.id && t.completedAt != null);
-  const archived = project.archivedAt != null;
+  const hasCompleted =
+    project != null && effectiveTasks.value.some((t) => t.projectId === project.id && t.completedAt != null);
+  const archived = project?.archivedAt != null;
 
   function addTask(): void {
     if (!project) return;
@@ -40,33 +46,42 @@ export function ProjectDetail({ id }: { id?: string }): JSX.Element | null {
   }
 
   return (
-    <div class={s.screen} style={`--project-color:${paletteColor(project.color)}`}>
+    <div class={s.screen} style={`--project-color:${paletteColor(project?.color ?? "blue")}`}>
       <header class={s.header}>
-        <ColorSwatch
-          value={project.color}
-          onPick={(c) => projectOps.patchProject(project.id, { color: c })}
-          class={s.swatch!}
-        />
-        <div class={s.titleRow}>
-          <AutoField
-            value={project.name}
-            onCommit={(name) => projectOps.patchProject(project.id, { name })}
-            placeholder="Untitled project"
-            ariaLabel="Project name"
-            class={archived ? `${s.title} ${s.titleArchived}` : s.title!}
-            wrap
-            fitContent={archived}
+        {project && (
+          <ColorSwatch
+            value={project.color}
+            onPick={(c) => projectOps.patchProject(project.id, { color: c })}
+            class={s.swatch!}
           />
+        )}
+        <div class={s.titleRow}>
+          {project ? (
+            <AutoField
+              value={project.name}
+              onCommit={(name) => projectOps.patchProject(project.id, { name })}
+              placeholder="Untitled project"
+              ariaLabel="Project name"
+              class={archived ? `${s.title} ${s.titleArchived}` : s.title!}
+              autoFocus={focusTitle}
+              wrap
+              fitContent={archived}
+            />
+          ) : (
+            <AutoField value="Not Found" onCommit={() => {}} ariaLabel="Project name" class={s.title!} disabled wrap />
+          )}
           {archived && <span class={s.archivedTag}>(Archived)</span>}
         </div>
-        <HistoryControls context="project" />
-        <NewButton label="New task" onClick={addTask} />
+        <HistoryControls context="project" disabled={notFound} />
+        <NewButton label="New task" onClick={addTask} disabled={notFound} />
         <TrashButton
           onClick={() => {
+            if (!project) return;
             projectOps.deleteProject(project.id);
             route("/projects");
           }}
           label="Delete project"
+          disabled={notFound}
         />
       </header>
       <div class={s.toolbar}>
@@ -74,14 +89,14 @@ export function ProjectDetail({ id }: { id?: string }): JSX.Element | null {
           <ChevronLeftIcon />
           <span>Projects</span>
         </button>
-        <FilterField value={filter} onInput={setFilter} ariaLabel="Filter tasks" class={s.filter!} />
+        <FilterField value={filter} onInput={setFilter} ariaLabel="Filter tasks" class={s.filter!} disabled={notFound} />
         <button
           type="button"
           class={s.clearCompleted}
           title="Delete all completed"
           aria-label="Delete all completed"
-          disabled={!hasCompleted}
-          onClick={() => projectOps.deleteCompletedTasks(project.id)}
+          disabled={notFound || !hasCompleted}
+          onClick={() => project && projectOps.deleteCompletedTasks(project.id)}
         >
           <BroomIcon />
         </button>
@@ -91,7 +106,8 @@ export function ProjectDetail({ id }: { id?: string }): JSX.Element | null {
           title={archived ? "Unarchive project" : "Archive project"}
           aria-label={archived ? "Unarchive project" : "Archive project"}
           aria-pressed={archived}
-          onClick={() => projectOps.toggleProjectArchived(project.id)}
+          disabled={notFound}
+          onClick={() => project && projectOps.toggleProjectArchived(project.id)}
         >
           <ArchiveIcon />
         </button>
@@ -99,15 +115,27 @@ export function ProjectDetail({ id }: { id?: string }): JSX.Element | null {
       <div class={s.stats}>
         <div class={s.statRow}>
           <span class={s.statLabel}>Value</span>
-          <PipPicker value={project.value} count={8} color="lime" onPick={(v) => projectOps.patchProject(project.id, { value: v })} />
+          <PipPicker
+            value={project?.value ?? 0}
+            count={8}
+            color="lime"
+            readonly={notFound}
+            onPick={(v) => project && projectOps.patchProject(project.id, { value: v })}
+          />
         </div>
         <div class={s.statRow}>
           <span class={s.statLabel}>Time</span>
-          <PipPicker value={project.time} count={8} color="sky" onPick={(v) => projectOps.patchProject(project.id, { time: v })} />
+          <PipPicker
+            value={project?.time ?? 0}
+            count={8}
+            color="sky"
+            readonly={notFound}
+            onPick={(v) => project && projectOps.patchProject(project.id, { time: v })}
+          />
         </div>
       </div>
-      <TaskList project={project} filter={filter} />
-      <button type="button" class={s.add} title="Add task" onClick={addTask}>
+      {project && <TaskList project={project} filter={filter} />}
+      <button type="button" class={s.add} title="Add task" onClick={addTask} disabled={notFound}>
         <PlusIcon />
       </button>
     </div>

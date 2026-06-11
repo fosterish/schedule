@@ -165,17 +165,14 @@
   cursor: pointer;
 }
 
+.add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Wide screens use the explicit "New task" button in the header instead. */
 @media (min-width: 641px) {
   .add {
     display: none;
   }
-}
-
-.centered {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--muted);
 }

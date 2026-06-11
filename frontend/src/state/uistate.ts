@@ -1,5 +1,6 @@
 import { batch, signal } from "@preact/signals";
 
+import type { ProjectId } from "@bindings/ProjectId";
 import type { ScheduleId } from "@bindings/ScheduleId";
 import type { ScheduleItemId } from "@bindings/ScheduleItemId";
 import type { TaskId } from "@bindings/TaskId";
@@ -14,6 +15,9 @@ export const selectedTask = signal<TaskId | null>(null);
 // When set, the schedule editor focuses this field on the selection it lands on.
 export type FocusField = "title" | "description" | null;
 export const focusOnSelect = signal<FocusField>(null);
+
+// A just-created project whose title should grab focus once. Cleared on consume.
+export const focusProjectId = signal<ProjectId | null>(null);
 
 // Explicit time-cursor minute: the schedule's play head. null = live (snaps to
 // `now` in today mode) / hidden (date & template modes). Run actions (play/skip/
@@ -72,6 +76,7 @@ export function reset(): void {
     selectedItem.value = null;
     selectedTask.value = null;
     focusOnSelect.value = null;
+    focusProjectId.value = null;
     cursorMinute.value = null;
     selectedContentHeight.value = 0;
     fitScheduleId.value = null;

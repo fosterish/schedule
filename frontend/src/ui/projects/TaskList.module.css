@@ -60,6 +60,13 @@
   text-decoration: line-through;
 }
 
+.blocked {
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+
 .grip {
   display: inline-flex;
   align-items: center;

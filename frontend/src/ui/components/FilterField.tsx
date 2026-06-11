@@ -9,9 +9,10 @@ interface Props {
   placeholder?: string;
   ariaLabel?: string;
   class?: string;
+  disabled?: boolean;
 }
 
-export function FilterField({ value, onInput, placeholder = "Filter\u2026", ariaLabel = "Filter", class: cls }: Props): JSX.Element {
+export function FilterField({ value, onInput, placeholder = "Filter\u2026", ariaLabel = "Filter", class: cls, disabled = false }: Props): JSX.Element {
   return (
     <div class={cls ? `${s.root} ${cls}` : s.root}>
       <input
@@ -20,6 +21,7 @@ export function FilterField({ value, onInput, placeholder = "Filter\u2026", aria
         value={value}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        disabled={disabled}
         onInput={(e) => onInput(e.currentTarget.value)}
       />
       {value !== "" && (
