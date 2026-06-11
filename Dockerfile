@@ -13,8 +13,10 @@ RUN npm run build
 # x86_64-unknown-linux-musl and `cargo build` produces statically linked
 # binaries that run on a bare Alpine (or scratch) image.
 FROM rust:1.95-alpine AS backend
-# musl-dev + gcc are needed to compile the bundled SQLite C sources.
-RUN apk add --no-cache musl-dev gcc
+# musl-dev + gcc compile the bundled SQLite C sources; the openssl packages let
+# openssl-sys (via web-push -> native-tls) find and statically link OpenSSL.
+RUN apk add --no-cache musl-dev gcc pkgconfig openssl-dev openssl-libs-static
+ENV OPENSSL_STATIC=1
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY backend/ backend/
