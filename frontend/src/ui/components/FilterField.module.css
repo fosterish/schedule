@@ -11,7 +11,7 @@
   padding: 0 28px 0 8px;
   font: inherit;
   color: var(--fg);
-  background: transparent;
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }

@@ -34,6 +34,13 @@
   border: 1px solid var(--border);
 }
 
+/* Doubled selector beats the composed `.btn`'s transparent background. */
+.navBtn.navBtn,
+.iconBtn.iconBtn,
+.todayBtn.todayBtn {
+  background: var(--bg);
+}
+
 .scroll {
   flex: 1;
   min-height: 0;
@@ -42,7 +49,7 @@
 }
 
 .templates {
-  margin-bottom: 16px;
+  margin-top: 16px;
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);

@@ -16,11 +16,15 @@
    bar pushes itself right). Top-aligned so the buttons hold their place when the
    fields stack on narrow screens. */
 .subheader {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 6px 12px;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--bar-shadow);
 }
 
 .nav {
@@ -47,6 +51,12 @@
   font-size: 20px;
   color: var(--muted);
   border: 1px solid var(--border);
+}
+
+/* Doubled selector beats the composed `.btn`'s transparent background. */
+.todayBtn.todayBtn,
+.navBtn.navBtn {
+  background: var(--bg);
 }
 
 .navBtn:hover:not(:disabled) {

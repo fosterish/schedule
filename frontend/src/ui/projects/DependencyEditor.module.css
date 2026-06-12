@@ -43,7 +43,7 @@
   height: var(--control-h);
   padding: 0 10px;
   font: inherit;
-  color: var(--project-color);
+  color: var(--fg);
   background: transparent;
   border: 1px solid color-mix(in srgb, var(--project-color) 55%, var(--border));
   border-radius: var(--radius);

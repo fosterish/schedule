@@ -5,7 +5,7 @@
   width: min(320px, 90vw);
   margin: 12vh auto 0;
   padding: 24px;
-  background: var(--bg);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }

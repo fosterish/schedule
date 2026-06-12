@@ -23,6 +23,7 @@
 /* Optional visible box, e.g. when used as a form control in settings. */
 .wrap .bordered {
   height: var(--control-h);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }

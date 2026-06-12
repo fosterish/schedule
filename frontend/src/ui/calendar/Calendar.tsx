@@ -53,32 +53,6 @@ export function Calendar(): JSX.Element {
       </header>
 
       <div class={s.scroll}>
-        <section class={s.templates}>
-          <div class={s.templatesHead}>
-            <span>Templates</span>
-            <button
-              type="button"
-              class={s.iconBtn}
-              title="New template"
-              onClick={() => {
-                const id = scheduleOps.createTemplate();
-                if (id != null) route(`/template/${id}`);
-              }}
-            >
-              <PlusIcon />
-            </button>
-          </div>
-          {templates.map((t) => (
-            <div key={t.id} class={s.templateRow}>
-              <button type="button" class={s.templateName} onClick={() => route(`/template/${t.id}`)}>
-                {t.name || "Untitled template"}
-              </button>
-              <TrashButton onClick={() => scheduleOps.deleteSchedule(t.id)} label="Delete template" />
-            </div>
-          ))}
-          {templates.length === 0 && <p class={s.empty}>No templates.</p>}
-        </section>
-
         <div class={s.gridHead}>
           {DOW.map((d) => (
             <div key={d} class={s.dow}>
@@ -104,6 +78,32 @@ export function Calendar(): JSX.Element {
             );
           })}
         </div>
+
+        <section class={s.templates}>
+          <div class={s.templatesHead}>
+            <span>Templates</span>
+            <button
+              type="button"
+              class={s.iconBtn}
+              title="New template"
+              onClick={() => {
+                const id = scheduleOps.createTemplate();
+                if (id != null) route(`/template/${id}`);
+              }}
+            >
+              <PlusIcon />
+            </button>
+          </div>
+          {templates.map((t) => (
+            <div key={t.id} class={s.templateRow}>
+              <button type="button" class={s.templateName} onClick={() => route(`/template/${t.id}`)}>
+                {t.name || "Untitled template"}
+              </button>
+              <TrashButton onClick={() => scheduleOps.deleteSchedule(t.id)} label="Delete template" />
+            </div>
+          ))}
+          {templates.length === 0 && <p class={s.empty}>No templates.</p>}
+        </section>
       </div>
     </div>
   );

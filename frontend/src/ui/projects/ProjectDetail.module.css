@@ -81,11 +81,15 @@
 }
 
 .toolbar {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--bar-shadow);
 }
 
 .back {
@@ -95,6 +99,12 @@
   padding: 0 10px 0 6px;
   color: var(--fg);
   border: 1px solid var(--border);
+}
+
+/* Doubled selector beats the composed `.btn`'s transparent background. */
+.back.back,
+.clearCompleted.clearCompleted {
+  background: var(--bg);
 }
 
 .back:hover {

@@ -8,10 +8,19 @@
   width: var(--control-h);
   height: var(--control-h);
   font-size: 20px;
-  color: var(--muted);
+  color: var(--fg);
   border: 1px solid var(--border);
 }
 
+/* Doubled selector beats the composed `.btn`'s transparent background. */
+.btn.btn {
+  background: var(--bg);
+}
+
 .btn:hover:not(:disabled) {
-  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.btn:disabled {
+  color: var(--muted);
 }

@@ -13,10 +13,14 @@
 }
 
 .toolbar {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   padding: 8px 12px;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--bar-shadow);
 }
 
 .filter {
@@ -74,7 +78,7 @@
   font: inherit;
   text-align: left;
   color: var(--fg);
-  background: color-mix(in srgb, var(--project-color) 12%, transparent);
+  background: color-mix(in srgb, var(--project-color) var(--row-bg-mix), transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;

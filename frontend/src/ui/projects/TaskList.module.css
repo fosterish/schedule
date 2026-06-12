@@ -12,7 +12,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius);
   padding: 8px 10px;
-  background: color-mix(in srgb, var(--project-color) 10%, transparent);
+  background: color-mix(in srgb, var(--project-color) var(--row-bg-mix), transparent);
   cursor: pointer;
   transition: transform 0.12s ease;
 }

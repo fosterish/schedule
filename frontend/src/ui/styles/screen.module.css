@@ -8,11 +8,15 @@
 }
 
 .header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--bar-shadow);
 }
 
 .heading {

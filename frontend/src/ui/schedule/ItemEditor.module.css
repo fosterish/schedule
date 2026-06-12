@@ -51,7 +51,13 @@
   border: 1px solid var(--border);
 }
 
-.anchorOn {
+.anchorBtn:not(.anchorOn):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--block-color, var(--accent)) 15%, transparent);
+  border-color: var(--block-color, var(--accent));
+}
+
+/* Doubled selector beats the composed `.btn`'s transparent background. */
+.anchorOn.anchorOn {
   color: var(--bg);
   background: var(--block-color, var(--accent));
   border-color: var(--block-color, var(--accent));

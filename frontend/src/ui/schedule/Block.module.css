@@ -7,10 +7,10 @@
   overflow: hidden;
   /* Pinned bounds shade the item (see bandClasses): free reads dark, pinned
      light. The band* classes pick the fill; this is the fully-free default. */
-  --band-dark: color-mix(in srgb, var(--block-color) 12%, var(--bg));
-  --band-light: color-mix(in srgb, var(--block-color) 42%, var(--bg));
+  --band-dark: color-mix(in srgb, var(--block-color) var(--item-band-dark-mix), var(--bg));
+  --band-light: color-mix(in srgb, var(--block-color) var(--item-band-light-mix), var(--bg));
   background-color: var(--band-dark);
-  border: 1px solid color-mix(in srgb, var(--block-color) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--block-color) var(--item-border-mix), transparent);
   border-left: 3px solid var(--block-color);
   border-radius: var(--radius);
   cursor: pointer;
