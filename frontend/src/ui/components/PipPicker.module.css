@@ -14,6 +14,6 @@
   cursor: pointer;
 }
 
-.pip:disabled {
-  cursor: default;
+span.pip {
+  cursor: inherit;
 }

@@ -10,6 +10,7 @@ import * as layout from "./layout";
 export interface ScheduleInsert {
   afterId: ScheduleItemId | null;
   bounds: ItemBounds;
+  span: layout.Span;
   layout: layout.LayoutFrame[];
 }
 
@@ -47,13 +48,15 @@ export function insertAt(
   const order = [...items];
   order.splice(idx, 0, { id: DRAFT_ID, bounds: { ...draft } });
 
-  const laid = layout.compute(order, span);
-  const verdict = layout.validate(order, laid, span);
+  // Grow the end so the draft fits when the schedule has no trailing slack left.
+  const sp: layout.Span = { start: span.start, end: layout.minEndToFit(order, span) };
+  const laid = layout.compute(order, sp);
+  const verdict = layout.validate(order, laid, sp);
   const afterId = idx === 0 ? null : items[idx - 1]!.id;
   if (!verdict.ok) {
     return err({ afterId, error: verdict.error, layout: stripDraft(laid) });
   }
-  return ok({ afterId, bounds: { ...draft }, layout: stripDraft(laid) });
+  return ok({ afterId, bounds: { ...draft }, span: sp, layout: stripDraft(laid) });
 }
 
 type RegionKind = "dynamic" | "static" | "gap";

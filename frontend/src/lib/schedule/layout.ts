@@ -151,6 +151,31 @@ export function validate(items: LayoutItem[], frames: LayoutFrame[], span: Span)
   return ok(undefined);
 }
 
+// Minimal schedule end (never below span.end) so the trailing run of items fits
+// at their rigid/minimum widths. A fixed end or a following fixed start is a wall
+// growth can't move; validate rejects content that overflows those instead.
+export function minEndToFit(items: LayoutItem[], span: Span): number {
+  const r = items.map((it) => resolve(it.bounds));
+  const n = r.length;
+  let cursor = span.start;
+  let need = span.end;
+  let i = 0;
+  while (i < n) {
+    if (r[i]!.start != null) cursor = r[i]!.start!;
+    const { last, right } = segmentBounds(r, i);
+    let minWidth = 0;
+    for (let k = i; k <= last; k++) minWidth += r[k]!.rigid ?? MIN_DURATION;
+    if (right != null) {
+      cursor = right;
+    } else {
+      need = Math.max(need, cursor + minWidth);
+      cursor = need;
+    }
+    i = last + 1;
+  }
+  return need;
+}
+
 export interface Resolved {
   start: number | null;
   end: number | null;

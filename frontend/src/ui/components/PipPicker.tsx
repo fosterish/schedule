@@ -14,7 +14,8 @@ interface Props {
 }
 
 // 1..count rating pips, filled up to `value` in the palette color. Interactive
-// when onPick is given; clicks never bubble (rows route on click).
+// when onPick is given; clicks never bubble (rows route on click). Readonly pips
+// render as spans so clicks pass through to the surrounding row.
 export function PipPicker({ value, count, color, onPick, readonly }: Props): JSX.Element {
   const hex = paletteColor(color);
   const filled = Math.max(0, Math.min(count, Math.round(value)));
@@ -22,13 +23,17 @@ export function PipPicker({ value, count, color, onPick, readonly }: Props): JSX
     <div class={s.pips}>
       {Array.from({ length: count }, (_, i) => i + 1).map((level) => {
         const on = level <= filled;
+        const cls = on ? `${s.pip} ${s.on}` : s.pip;
+        const style = on ? { background: hex, borderColor: hex } : undefined;
+        if (readonly) {
+          return <span key={level} class={cls} style={style} />;
+        }
         return (
           <button
             key={level}
             type="button"
-            disabled={readonly}
-            class={on ? `${s.pip} ${s.on}` : s.pip}
-            style={on ? { background: hex, borderColor: hex } : undefined}
+            class={cls}
+            style={style}
             aria-label={`Level ${level}`}
             onClick={(e) => {
               e.preventDefault();

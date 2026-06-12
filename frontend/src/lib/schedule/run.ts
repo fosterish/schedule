@@ -42,11 +42,11 @@ interface Work {
 // media badges pinned at the target's midpoint.
 export function flags(items: LayoutItem[], frames: LayoutFrame[], nowMinute: number, span: Span): RunFlags {
   const f = compute(items, frames, nowMinute, span);
-  // Stop sets the target's end to now; if its start already equals now that is a
-  // zero-duration delete, so disable instead.
+  // Stop sets the target's end to now; at the target's beginning that would zero
+  // its duration, so disable instead.
   if (f.stop.enabled && f.stop.target != null) {
-    const t = items.find((it) => it.id === f.stop.target);
-    if (t && t.bounds.start === nowMinute) {
+    const fr = frames.find((x) => x.id === f.stop.target);
+    if (fr && fr.start === nowMinute) {
       f.stop = { enabled: false, target: null };
     }
   }
@@ -105,10 +105,11 @@ function afterEnd(action: RunAction, w: Work[], now: number): Result<void, RunEr
   }
   if (lastFixedEnd) return err(disabled("Skip disabled after the schedule end"));
   const first = walkBack(w, last);
-  if (first === last) return err(disabled("Skip disabled (only one item in the final block)"));
+  const skip = first + 1;
+  if (skip > last) return err(disabled("Skip disabled (only one item in the final block)"));
   setEnd(w, first, now);
+  setStart(w, skip, now);
   normalize(w);
-  playLiveBlock(w, lastLiveBlockFirst(w), now);
   return ok(undefined);
 }
 
@@ -125,12 +126,12 @@ function within(action: RunAction, w: Work[], idx: number, now: number): Result<
     normalize(w);
     return ok(undefined);
   }
-  // skip: stop the current (block), play the next live block.
+  // skip: stop the target, start the next item (disabled if it is fixed-start).
+  const skip = first + 1;
+  if (skip >= w.length || w[skip]!.start != null) return err(disabled("no next item to play"));
   setEnd(w, first, now);
+  setStart(w, skip, now);
   normalize(w);
-  const nextPos = nextLivePos(w, first);
-  if (nextPos < 0) return err(disabled("no next item to play"));
-  playLiveBlock(w, blockFirstAmongLive(w, nextPos), now);
   return ok(undefined);
 }
 
@@ -204,11 +205,12 @@ function compute(items: LayoutItem[], frames: LayoutFrame[], now: number, span: 
   if (containing >= 0) {
     const fullyFixed = w[containing]!.start != null && w[containing]!.end != null;
     const first = fullyFixed ? containing : walkBack(w, containing);
-    const nextFixedStart = containing + 1 < w.length && w[containing + 1]!.start != null;
+    const skip = first + 1;
     f.play = { enabled: true, target: idAt(first) };
     f.stop = { enabled: true, target: idAt(first) };
-    if (first + 1 < w.length && !nextFixedStart) {
-      f.skip = { enabled: true, target: idAt(first + 1) };
+    // Skip targets the item after the play target, blocked by its fixed start.
+    if (skip < w.length && w[skip]!.start == null) {
+      f.skip = { enabled: true, target: idAt(skip) };
     }
     return f;
   }
@@ -269,46 +271,6 @@ function countFinalBlock(w: Work[]): number {
     count += 1;
   }
   return count;
-}
-
-function nextLivePos(w: Work[], after: number): number {
-  for (let i = after + 1; i < w.length; i++) if (!w[i]!.deleted) return i;
-  return -1;
-}
-
-// Block-first (among live items) of the live item at position `pos` in `w`.
-function blockFirstAmongLive(w: Work[], pos: number): number {
-  const live = w.filter((x) => !x.deleted);
-  const id = w[pos]!.id;
-  const li = live.findIndex((x) => x.id === id);
-  if (li < 0) return pos;
-  const bf = walkBackLive(live, li);
-  return w.findIndex((x) => x.id === live[bf]!.id);
-}
-
-function lastLiveBlockFirst(w: Work[]): number {
-  const live = w.filter((x) => !x.deleted);
-  if (live.length === 0) return -1;
-  const bf = walkBackLive(live, live.length - 1);
-  return w.findIndex((x) => x.id === live[bf]!.id);
-}
-
-function walkBackLive(live: Work[], idx: number): number {
-  const s = live[idx]!;
-  if (s.start != null) return idx;
-  let i = idx;
-  while (i > 0) {
-    i -= 1;
-    if (live[i]!.end != null) return i + 1;
-    if (live[i]!.start != null) return i;
-  }
-  return 0;
-}
-
-function playLiveBlock(w: Work[], pos: number, now: number): void {
-  if (pos < 0) return;
-  setStart(w, pos, now);
-  normalize(w);
 }
 
 // Pin start; if that would over-constrain a fixed-duration item (both edges now

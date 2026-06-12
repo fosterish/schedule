@@ -39,28 +39,36 @@ describe("parseClockToMin", () => {
     expect(parseClockToMin("23:00-1")).toBe(-60);
   });
 
-  it("parses bare hours", () => {
-    expect(parseClockToMin("8")).toBe(480);
-    expect(parseClockToMin("8+1")).toBe(1920);
+  it("treats bare numbers as minutes", () => {
+    expect(parseClockToMin("8")).toBe(8);
+    expect(parseClockToMin("90")).toBe(90);
+    expect(parseClockToMin("8+1")).toBe(1448);
   });
 
-  it("parses flexible forms within a day", () => {
+  it("rolls hours past 23 into the next day", () => {
+    expect(parseClockToMin("24:00")).toBe(1440);
+    expect(parseClockToMin("25h")).toBe(1500);
+    expect(fmtClock(parseClockToMin("24:00"))).toBe("00:00+1");
+    expect(fmtClock(parseClockToMin("25h"))).toBe("01:00+1");
+  });
+
+  it("parses flexible forms", () => {
     expect(parseClockToMin(":135")).toBe(135);
     expect(parseClockToMin("1h30m")).toBe(90);
   });
 
   it("rejects out-of-range and garbage", () => {
-    expect(parseClockToMin("24:00")).toBeNull();
+    expect(parseClockToMin("48:00")).toBeNull();
     expect(parseClockToMin("")).toBeNull();
     expect(parseClockToMin("nope")).toBeNull();
-    expect(parseClockToMin("1500")).toBeNull();
   });
 });
 
 describe("parseDurationToMin", () => {
-  it("parses HH:MM, bare hours, units, and colon", () => {
+  it("parses HH:MM, bare minutes, units, and colon", () => {
     expect(parseDurationToMin("01:30")).toBe(90);
-    expect(parseDurationToMin("2")).toBe(120);
+    expect(parseDurationToMin("2")).toBe(2);
+    expect(parseDurationToMin("2h")).toBe(120);
     expect(parseDurationToMin("90m")).toBe(90);
     expect(parseDurationToMin(":45")).toBe(45);
   });

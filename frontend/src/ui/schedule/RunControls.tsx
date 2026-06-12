@@ -24,13 +24,13 @@ export function RunControls({ scheduleId, flags, atMinute }: Props): JSX.Element
   };
   return (
     <div class={s.controls}>
-      <button type="button" class={s.btn} disabled={!flags?.play.enabled} title="Play" onClick={act("play")}>
+      <button type="button" class={s.btn} disabled={!flags?.play.enabled} title="Start item" onClick={act("play")}>
         <PlayIcon />
       </button>
-      <button type="button" class={s.btn} disabled={!flags?.skip.enabled} title="Skip" onClick={act("skip")}>
+      <button type="button" class={s.btn} disabled={!flags?.skip.enabled} title="Skip to next item" onClick={act("skip")}>
         <SkipIcon />
       </button>
-      <button type="button" class={s.btn} disabled={!flags?.stop.enabled} title="Stop" onClick={act("stop")}>
+      <button type="button" class={s.btn} disabled={!flags?.stop.enabled} title="Stop item" onClick={act("stop")}>
         <StopIcon />
       </button>
     </div>

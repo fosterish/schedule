@@ -80,6 +80,12 @@ const RUN_ICON: Record<RunAction, JSX.Element> = {
   stop: <StopIcon />,
 };
 
+const RUN_BADGE_LABEL: Record<RunAction, string> = {
+  play: "Start this item",
+  skip: "Skip to this item",
+  stop: "Stop this item",
+};
+
 // Layout morph: every vertical position is (minute - span.start) * zoom. Interpolating
 // these inputs (per-item minutes, span origin, zoom) with one progress lets a
 // duration or zoom change glide instead of snapping, with zoom set instantly.
@@ -759,7 +765,7 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
                   key={kind}
                   type="button"
                   class={s.mediaBadge}
-                  title={`${kind[0]!.toUpperCase()}${kind.slice(1)} from here`}
+                  title={RUN_BADGE_LABEL[kind]}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();

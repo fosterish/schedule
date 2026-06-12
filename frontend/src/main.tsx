@@ -10,6 +10,7 @@ import { setUnauthorizedHandler } from "@data/api";
 import { startClock } from "@state/clock";
 import { startReminders } from "@state/reminders";
 import * as session from "@state/session";
+import { startNotifications } from "@state/settings";
 import { App } from "@ui/app";
 
 // A 401 mid-session drops the user; the auth gate then routes to /login.
@@ -20,6 +21,7 @@ setUnauthorizedHandler(session.handleUnauthorized);
 async function boot(): Promise<void> {
   startClock();
   startReminders();
+  startNotifications();
   await session.loadSession();
   if (session.user.value) await session.beginSession();
 }

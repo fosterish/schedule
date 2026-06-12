@@ -71,7 +71,12 @@ export function insertItem(
     taskRank: 1,
     rev: localRev(),
   };
-  commit([upsertItem(row)], CTX);
+  const ops: Operation[] = [upsertItem(row)];
+  const sched = effectiveSchedules.value.find((s) => s.id === scheduleId);
+  if (sched && (plan.value.span.start !== sched.start || plan.value.span.end !== sched.end)) {
+    ops.push(scheduleUpsert({ ...sched, start: plan.value.span.start, end: plan.value.span.end }));
+  }
+  commit(ops, CTX);
   return id;
 }
 
@@ -219,6 +224,26 @@ export function runAction(scheduleId: ScheduleId, action: run.RunAction, nowMinu
   }
   for (const id of plan.value.deletes) {
     ops.push({ kind: "delete", ref: { kind: "scheduleItem", id } });
+  }
+  // Grow the window to admit an anchor a Play/Stop pinned past the boundary, then
+  // out further so the trailing items keep at least their minimum widths.
+  const sched = effectiveSchedules.value.find((s) => s.id === scheduleId);
+  if (sched) {
+    let bounds = { start: sched.start, end: sched.end };
+    for (const p of plan.value.patches) {
+      const grown = grownBounds({ ...sched, ...bounds }, p.bounds);
+      if (grown) bounds = grown;
+    }
+    const patched = new Map(plan.value.patches.map((p) => [p.id, p.bounds]));
+    const deleted = new Set(plan.value.deletes);
+    const nextItems = layoutItems
+      .filter((it) => !deleted.has(it.id))
+      .map((it) => ({ id: it.id, bounds: patched.get(it.id) ?? it.bounds }));
+    const end = clampInt(layout.minEndToFit(nextItems, bounds), bounds.start + 1, bounds.start + DAY_MINUTES);
+    if (end > bounds.end) bounds = { ...bounds, end };
+    if (bounds.start !== sched.start || bounds.end !== sched.end) {
+      ops.push(scheduleUpsert({ ...sched, ...bounds }));
+    }
   }
   if (ops.length > 0) commit(ops, CTX);
   return true;

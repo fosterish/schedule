@@ -75,6 +75,14 @@ describe("insertAt with an explicit cursor", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.error.kind).toBe("belowMin");
   });
+
+  it("grows the schedule end to admit a new item when the span is full", () => {
+    // A rigid item fills 480..1320 exactly; the draft needs one trailing minute.
+    const items = [item("a", bounds({ fixedDuration: 840 }))];
+    const r = expectOk(insertAt(items, dyn(), SPAN, null, null));
+    expect(r.afterId).toBe(id("a"));
+    expect(r.span).toEqual({ start: 480, end: 1321 });
+  });
 });
 
 describe("insertAt without a cursor (least strain)", () => {

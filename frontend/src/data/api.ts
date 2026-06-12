@@ -111,5 +111,5 @@ export interface ReminderUpload {
   payload: unknown;
 }
 
-export const putReminders = (endpoint: string, reminders: ReminderUpload[]): Promise<void> =>
-  request("PUT", "/api/push/reminders", { endpoint, reminders });
+export const putReminders = (reminders: ReminderUpload[]): Promise<void> =>
+  request("PUT", "/api/push/reminders", { reminders });

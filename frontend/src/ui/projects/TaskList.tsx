@@ -91,7 +91,13 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
   function gripMove(e: JSX.TargetedPointerEvent<HTMLButtonElement>): void {
     if (!drag || drag.mids.length === 0) return;
     const y = e.clientY;
-    const res = proj.reorder.detect(drag.order, drag.mids, drag.id, y >= drag.startY ? "down" : "up", y, edges);
+    const dir = y >= drag.startY ? "down" : "up";
+    // The leading edge of the dragged row (bottom when moving down, top when up)
+    // is what crosses other rows' midpoints, independent of the grab offset.
+    const draggedMid = drag.mids[drag.order.indexOf(drag.id)] ?? drag.startY;
+    const center = draggedMid + (y - drag.startY);
+    const leadingEdge = dir === "down" ? center + drag.height / 2 : center - drag.height / 2;
+    const res = proj.reorder.detect(drag.order, drag.mids, drag.id, dir, leadingEdge, edges);
     if (res.ok) {
       setDrag({ ...drag, y, moved: true, target: res.value, conflicts: new Set() });
     } else {

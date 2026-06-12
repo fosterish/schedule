@@ -18,6 +18,24 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Suppress the browser's tap highlight and long-press text selection/callout on
+   touch, which interfere with custom tap and drag interactions. */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Keep selection working where the user is actually editing or reading text. */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 /* Buttons don't inherit type by default; opt them in so every button reads at
    the body's medium size unless its own class sets a font-size. */
 button {

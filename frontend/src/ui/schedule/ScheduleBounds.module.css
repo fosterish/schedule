@@ -51,16 +51,18 @@
   opacity: 1;
 }
 
+/* Offset matches the item edge handles' dots (7px off the edge), so a bound and
+   an item handle on the same line read as the same control. */
 .start .handle {
-  transform: translateY(-5px);
+  transform: translateY(-7px);
 }
 
 .end .handle {
-  transform: translateY(5px);
+  transform: translateY(7px);
 }
 
 /* Editable start/end fields hosted in the schedule toolbar row; pushed to the
-   row's right edge. Narrow screens stack the two fields, right-aligned. */
+   row's right edge. Only very narrow screens stack the two fields, right-aligned. */
 .bar {
   display: flex;
   align-items: center;
@@ -79,7 +81,7 @@
   letter-spacing: 0.04em;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 430px) {
   .bar {
     flex-direction: column;
     align-items: flex-end;

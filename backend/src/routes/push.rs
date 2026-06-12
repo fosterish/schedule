@@ -93,7 +93,6 @@ async fn unsubscribe(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ReplaceReminders {
-    endpoint: String,
     reminders: Vec<ReminderInput>,
 }
 
@@ -104,8 +103,9 @@ struct ReminderInput {
     payload: serde_json::Value,
 }
 
-// Replace the user's whole reminder set (last-write-wins across devices) and
-// refresh the uploading device's last_seen, which doubles as its heartbeat.
+// Replace the user's whole reminder set (last-write-wins across devices). Any
+// signed-in device uploads, even without push, so the user's listening devices
+// fire them. Device liveness is tracked separately via POST /push/subscribe.
 async fn replace_reminders(
     State(state): State<AppState>,
     user: AuthUser,
@@ -113,19 +113,11 @@ async fn replace_reminders(
 ) -> AppResult<StatusCode> {
     tracing::debug!(
         username = %user.1,
-        host = endpoint_host(&body.endpoint),
         count = body.reminders.len(),
         "PUT /push/reminders",
     );
     let user_id = user.0 .0.to_string();
     let mut tx = state.pool.begin().await?;
-
-    sqlx::query("UPDATE push_subscriptions SET last_seen_ms = ? WHERE endpoint = ? AND user_id = ?")
-        .bind(now_ms())
-        .bind(&body.endpoint)
-        .bind(&user_id)
-        .execute(&mut *tx)
-        .await?;
 
     sqlx::query("DELETE FROM push_reminders WHERE user_id = ?")
         .bind(&user_id)

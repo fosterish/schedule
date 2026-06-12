@@ -187,6 +187,10 @@ function spanFor(
   }
   start = clampInt(start, Math.max(0, span.end - DAY_MINUTES), span.start);
   end = clampInt(end, span.end, span.start + DAY_MINUTES);
+  // Also grow the end when a (fixed-duration) item's reserved width overflows the
+  // trailing run, not just when a fixed edge presses past the boundary.
+  const order = withCandidate(items, index, cand);
+  end = clampInt(layout.minEndToFit(order, { start, end }), span.end, start + DAY_MINUTES);
   return { start, end };
 }
 

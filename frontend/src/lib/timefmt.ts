@@ -1,5 +1,6 @@
 // Clock (HH:MM, +/-1 day) and duration (HH:MM) formatting and parsing. Both
-// parsers accept bare hours, :minutes, and unit-suffixed forms.
+// parsers accept bare minutes, :minutes, and unit-suffixed forms. Hours past 23
+// roll into the next day (e.g. "25h" -> 01:00+1).
 
 export function fmtClock(minute: number | null): string {
   if (minute == null) return "\u2014";
@@ -30,30 +31,24 @@ export function fmtDurationHuman(minute: number | null): string {
 export function parseClockToMin(s: string): number | null {
   const t = s.trim();
   if (!t) return null;
-  let m = /^(\d{1,2}):([0-5]\d)(\+1|-1)?$/.exec(t);
-  if (m) {
-    const h = Number(m[1]);
-    if (h > 23) return null;
-    return h * 60 + Number(m[2]) + daySuffix(m[3]);
+  let total: number | null = null;
+  const hm = /^(\d{1,2}):([0-5]\d)(\+1|-1)?$/.exec(t);
+  if (hm) {
+    total = Number(hm[1]) * 60 + Number(hm[2]) + daySuffix(hm[3]);
+  } else {
+    const suffix = /(\+1|-1)$/.exec(t);
+    const flex = parseUnitOrColon(suffix ? t.slice(0, -suffix[0].length) : t);
+    if (flex != null) total = flex + daySuffix(suffix?.[1]);
   }
-  m = /^(\d{1,2})(\+1|-1)?$/.exec(t);
-  if (m) {
-    const h = Number(m[1]);
-    if (h > 23) return null;
-    return h * 60 + daySuffix(m[2]);
-  }
-  // Flexible forms must land within one day; cross-day needs the canonical form.
-  const flex = parseUnitOrColon(t);
-  return flex != null && flex >= 0 && flex < 1440 ? flex : null;
+  // Allow up to a full day of overflow/underflow; fmtClock renders +/-1.
+  return total != null && total >= -1440 && total < 2880 ? total : null;
 }
 
 export function parseDurationToMin(s: string): number | null {
   const t = s.trim();
   if (!t) return null;
-  let m = /^(\d{1,2}):([0-5]\d)$/.exec(t);
+  const m = /^(\d{1,2}):([0-5]\d)$/.exec(t);
   if (m) return Number(m[1]) * 60 + Number(m[2]);
-  m = /^(\d{1,2})$/.exec(t);
-  if (m) return Number(m[1]) * 60;
   const flex = parseUnitOrColon(t);
   return flex != null && flex > 0 ? flex : null;
 }
@@ -68,13 +63,16 @@ function pad(n: number): string {
 
 const UNIT_RE = /^(\d+)(hours?|hrs?|h|minutes?|mins?|m)/;
 
-// Shape-only parse of unit-suffixed (`1h30m`) and bare-colon (`:135`) forms to
-// total minutes; range checks live in the public parsers.
+// Shape-only parse of bare minutes (`90`), colon minutes (`:135`), and
+// unit-suffixed (`1h30m`) forms to total minutes; range checks live in the
+// public parsers.
 function parseUnitOrColon(t: string): number | null {
   const cleaned = t.toLowerCase().replace(/[\s,]/g, "");
   if (!cleaned) return null;
   const colon = /^:(\d+)$/.exec(cleaned);
   if (colon) return Number(colon[1]);
+  const bare = /^(\d+)$/.exec(cleaned);
+  if (bare) return Number(bare[1]);
   if (!/[a-z]/.test(cleaned)) return null;
   let rest = cleaned;
   let total = 0;

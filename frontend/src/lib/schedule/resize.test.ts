@@ -62,6 +62,17 @@ describe("resize.slideEdge schedule growth", () => {
     expect(r.value).toBe(0);
     expect(r.span).toEqual({ start: 0, end: 1440 });
   });
+
+  test("an unanchored fixed-duration item grows the end when it overflows", () => {
+    const span: layout.Span = { start: 480, end: 1320 };
+    // A has no fixed edge; stretching its duration to 900 overruns the 840-wide
+    // span, so the end grows to 480 + 900 rather than clamping the duration.
+    const items = [li("A", { fixedDuration: 60 })];
+    const r = resize.slideDuration(items, span, 0, 900);
+    expect(r.value).toBe(900);
+    expect(r.bounds.fixedDuration).toBe(900);
+    expect(r.span).toEqual({ start: 480, end: 1380 });
+  });
 });
 
 describe("resize.reinsertByValue", () => {

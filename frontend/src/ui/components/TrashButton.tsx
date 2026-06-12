@@ -15,6 +15,7 @@ export function TrashButton({ onClick, label = "Delete", class: cls, disabled = 
   return (
     <button
       type="button"
+      tabIndex={-1}
       class={cls ? `${s.trash} ${cls}` : s.trash}
       aria-label={label}
       title={label}

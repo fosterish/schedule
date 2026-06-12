@@ -11,7 +11,7 @@
 .row {
   border: 1px solid transparent;
   border-radius: var(--radius);
-  padding: 4px 6px;
+  padding: 8px 10px;
   background: color-mix(in srgb, var(--project-color) 10%, transparent);
   cursor: pointer;
   transition: transform 0.12s ease;
@@ -44,6 +44,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Match the grip-button height so completed (grip-less) rows stay the same height. */
+  min-height: var(--control-h);
 }
 
 .check {

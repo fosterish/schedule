@@ -124,8 +124,10 @@
   background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 
-.archiveOn,
-.archiveOn:hover:not(:disabled) {
+/* Doubled selector out-specifies the composed `.btn` (transparent background)
+   regardless of stylesheet order, so the highlighted fill always wins. */
+.clearCompleted.archiveOn,
+.clearCompleted.archiveOn:hover:not(:disabled) {
   color: var(--bg);
   background: var(--accent);
   border-color: var(--accent);

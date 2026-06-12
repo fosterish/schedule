@@ -56,6 +56,33 @@ describe("run.flags", () => {
     const f = flags(items, compute(items, SPAN), 480, SPAN);
     expect(f.stop.enabled).toBe(false);
   });
+
+  it("disables Stop at the beginning of a dynamic block", () => {
+    const items = threeDynamic();
+    // now == the block's start; stopping its first item would zero its duration.
+    const f = flags(items, compute(items, SPAN), 480, SPAN);
+    expect(f.stop.enabled).toBe(false);
+    // A minute later it targets the block's first item and is enabled.
+    const g = flags(items, compute(items, SPAN), 481, SPAN);
+    expect(g.stop).toEqual({ enabled: true, target: id("a") });
+  });
+
+  it("disables Skip when the next item has a fixed start", () => {
+    const items = [item("a", dyn()), item("b", fixed(600, 660))];
+    // a is its own dynamic block; the next item b is fixed-start.
+    const f = flags(items, compute(items, SPAN), 500, SPAN);
+    expect(f.play.target).toBe(id("a"));
+    expect(f.skip.enabled).toBe(false);
+  });
+
+  it("targets a static item itself for play and stop", () => {
+    const items = [item("a", fixed(480, 600)), item("b", dyn())];
+    const f = flags(items, compute(items, SPAN), 540, SPAN);
+    expect(f.play.target).toBe(id("a"));
+    expect(f.stop.target).toBe(id("a"));
+    // The next item b is dynamic-start, so Skip targets it.
+    expect(f.skip).toEqual({ enabled: true, target: id("b") });
+  });
 });
 
 describe("run.apply", () => {

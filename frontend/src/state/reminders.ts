@@ -28,45 +28,24 @@ const plannedReminders = computed<remind.PlannedReminder[]>(() => {
   });
 });
 
-let desired: boolean | null = null;
 let lastUpload = "";
 
-// Reconcile the browser subscription with the user's intent, and keep the
-// server's reminder set in sync while subscribed. Call once at boot.
+// Keep the server's reminder set in sync whenever signed in. Reminders upload
+// regardless of this device's notification toggle, since the user's other
+// devices may be listening. Call once at boot. (This device's own push
+// subscription is managed in state/settings.) 
 export function startReminders(): void {
   effect(() => {
-    const want = user.value != null && settings.notificationsEnabled.value;
-    void reconcile(want);
-  });
-
-  effect(() => {
     const list = plannedReminders.value;
-    if (user.value == null || !settings.notificationsEnabled.value) return;
+    if (user.value == null) {
+      lastUpload = "";
+      return;
+    }
     const serialized = JSON.stringify(list);
     if (serialized === lastUpload) return;
     lastUpload = serialized;
     void push.uploadReminders(list);
   });
-}
-
-async function reconcile(want: boolean): Promise<void> {
-  if (want === desired) return;
-  desired = want;
-  try {
-    if (want) {
-      lastUpload = "";
-      await push.subscribe();
-      // Subscribed: push the current set now (the upload effect dedupes the rest).
-      await push.uploadReminders(plannedReminders.value);
-    } else {
-      await push.uploadReminders([]);
-      await push.unsubscribe();
-      lastUpload = "";
-    }
-  } catch (e) {
-    desired = null;
-    console.error("[push] reconcile failed", e);
-  }
 }
 
 function titleOf(payload: ItemPayload): string {
