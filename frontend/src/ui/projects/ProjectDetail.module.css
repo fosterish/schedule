@@ -59,12 +59,18 @@
   margin-right: -4px;
 }
 
+/* Bottom bar of the elevated header group: paints over the toolbar's shadow and
+   casts the group's shadow onto the scrolling task list below. */
 .stats {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 8px 12px;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--bar-shadow);
   --pip-size: 16px;
 }
 
