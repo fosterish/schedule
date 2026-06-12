@@ -277,14 +277,18 @@
   color: var(--muted);
 }
 
-/* Resize grab zones on a collapsed item's fixed edges: full width, a capped
-   fraction of the height, with the dots tucked just inside the edge. */
+/* Resize grab zones on a collapsed item's fixed edges: a narrow band around the
+   dots (the handle width plus a little margin, not the whole item width, so a
+   scroll swipe over the item body doesn't resize) and a capped fraction of the
+   height, with the dots tucked just inside the edge. */
 .handle {
   position: absolute;
-  /* Negate the asymmetric borders (3px accent left, 1px right) so the centered
-     dots line up with the schedule-bound handles, which span the true center. */
-  left: -3px;
-  right: -1px;
+  /* Centered on the true item center; the 1px offset negates the asymmetric
+     borders (3px accent left, 1px right) so the dots line up with the
+     schedule-bound handles, which span the true center. */
+  left: calc(50% - 1px);
+  transform: translateX(-50%);
+  width: 44px;
   height: min(30%, 16px);
   display: flex;
   justify-content: center;

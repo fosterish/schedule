@@ -73,7 +73,7 @@ interface ResizeState {
 
 // Touch press that stays roughly still this long arms a reorder; a quicker swipe
 // scrolls instead.
-const HOLD_MS = 280;
+const HOLD_MS = 500;
 const RUN_ICON: Record<RunAction, JSX.Element> = {
   play: <PlayIcon />,
   skip: <SkipIcon />,
