@@ -221,6 +221,11 @@ function assemble(
   return { mode, schedule, items, nowMinute, validation };
 }
 
+// The color an item renders with: its project's for task/noTask, else its inline.
+export function color(projects: ProjectIndex, it: ScheduleItem): Color {
+  return displayColor(it, item(projects, it));
+}
+
 function displayColor(raw: ScheduleItem, payload: ItemPayload): Color {
   switch (payload.kind) {
     case "task":

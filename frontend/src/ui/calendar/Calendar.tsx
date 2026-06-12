@@ -6,7 +6,7 @@ import type { ScheduleView } from "@lib/schedule/resolve";
 import { todayDate } from "@state/clock";
 import { effectiveBindings, effectiveSchedules, effectiveTemplates } from "@state/pending";
 import * as scheduleOps from "@state/mutations/schedule";
-import { dateView } from "@state/views";
+import { dateView, templateView } from "@state/views";
 import { paletteColor } from "@ui/palette";
 import { TrashButton } from "@ui/components/TrashButton";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@ui/components/icons";
@@ -94,14 +94,22 @@ export function Calendar(): JSX.Element {
               <PlusIcon />
             </button>
           </div>
-          {templates.map((t) => (
-            <div key={t.id} class={s.templateRow}>
-              <button type="button" class={s.templateName} onClick={() => route(`/template/${t.id}`)}>
-                {t.name || "Untitled template"}
-              </button>
-              <TrashButton onClick={() => scheduleOps.deleteSchedule(t.id)} label="Delete template" />
-            </div>
-          ))}
+          {templates.map((t) => {
+            const view = templateView(t.id);
+            return (
+              <div key={t.id} class={s.templateRow}>
+                {view && <MiniTimeline view={view} fill />}
+                <button type="button" class={s.templateName} onClick={() => route(`/template/${t.id}`)}>
+                  {t.name || "Untitled template"}
+                </button>
+                <TrashButton
+                  onClick={() => scheduleOps.deleteSchedule(t.id)}
+                  label="Delete template"
+                  class={s.templateTrash!}
+                />
+              </div>
+            );
+          })}
           {templates.length === 0 && <p class={s.empty}>No templates.</p>}
         </section>
       </div>
@@ -109,18 +117,18 @@ export function Calendar(): JSX.Element {
   );
 }
 
-function MiniTimeline({ view }: { view: ScheduleView }): JSX.Element | null {
+function MiniTimeline({ view, fill = false }: { view: ScheduleView; fill?: boolean }): JSX.Element | null {
   if (view.items.length === 0) return null;
   const start = view.items[0]!.start;
   const end = view.items[view.items.length - 1]!.end;
   const total = end - start;
   if (total <= 0) return null;
   return (
-    <span class={s.miniBar}>
+    <span class={fill ? s.fillBar : s.miniBar}>
       {view.items.map((it) => (
         <span
           key={it.id}
-          class={s.miniBlock}
+          class={fill ? s.fillBlock : s.miniBlock}
           style={`left:${((it.start - start) / total) * 100}%;width:${Math.max(2, ((it.end - it.start) / total) * 100)}%;background:${paletteColor(it.color)}`}
         />
       ))}

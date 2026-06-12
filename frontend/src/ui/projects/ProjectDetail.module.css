@@ -7,10 +7,13 @@
   composes: header from "../styles/screen.module.css";
 }
 
-/* The title is a textarea that grows downward when it wraps, so top-align the
-   header row (overrides the shared header's centering). */
+/* Top-align the wrapping-textarea title (overrides the shared centering), and
+   sit above the toolbar/stats bars so the color popover escapes their stacking
+   context. The header's own shadow is hidden by those bars, so drop it. */
 .screen > .header {
   align-items: flex-start;
+  z-index: 2;
+  box-shadow: none;
 }
 
 .titleRow {

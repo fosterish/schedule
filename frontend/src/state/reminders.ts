@@ -52,8 +52,11 @@ function titleOf(payload: ItemPayload): string {
   switch (payload.kind) {
     case "inline":
       return payload.label.trim() || "Untitled";
-    case "task":
-      return payload.taskName.trim() || "Untitled";
+    case "task": {
+      const project = payload.projectName.trim();
+      const task = payload.taskName.trim() || "Untitled";
+      return project ? `${project}: ${task}` : task;
+    }
     case "noTask":
       return payload.projectName.trim() || "Untitled";
     case "noProject":

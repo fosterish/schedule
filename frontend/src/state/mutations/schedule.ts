@@ -13,6 +13,7 @@ import * as insert from "@lib/schedule/insert";
 import * as layout from "@lib/schedule/layout";
 import * as reorder from "@lib/schedule/reorder";
 import * as resize from "@lib/schedule/resize";
+import * as resolve from "@lib/schedule/resolve";
 import * as run from "@lib/schedule/run";
 
 import { commit } from "../commit";
@@ -29,6 +30,7 @@ import { localRev, newId } from "../mint";
 import { defaultEnd, defaultStart } from "../settings";
 import { pushToast } from "../toast";
 import { fitScheduleId, panToSelected } from "../uistate";
+import { projectIndex } from "../views";
 
 // All schedule mutations expand to row upserts/deletes and commit under the
 // "schedule" undo context. Composite intents (insert, reorder, run) lean on the
@@ -46,7 +48,7 @@ export function insertItem(
   scheduleId: ScheduleId,
   cursor: number | null,
   now: number | null,
-  color: Color,
+  pickColor: (exclude: Color[]) => Color,
 ): ScheduleItemId | null {
   const span = scheduleSpan(scheduleId);
   if (!span) return null;
@@ -55,6 +57,7 @@ export function insertItem(
   const plan = insert.insertAt(rows.map(toLayoutItem), draft, span, cursor, now);
   if (!plan.ok) return null;
 
+  const color = pickColor(neighborColors(rows, plan.value.afterId));
   const id = newId();
   const row: ScheduleItem = {
     id,
@@ -349,6 +352,16 @@ export function deleteSchedule(id: ScheduleId): void {
 }
 
 // --- helpers ---
+
+// Resolved colors of the items that will flank the insertion point (item at
+// `afterId` and its successor), so the new item can avoid matching a neighbour.
+function neighborColors(rows: ScheduleItem[], afterId: ScheduleItemId | null): Color[] {
+  const index = afterId == null ? -1 : rows.findIndex((it) => it.id === afterId);
+  const projects = projectIndex.value;
+  return [rows[index], rows[index + 1]]
+    .filter((it): it is ScheduleItem => it != null)
+    .map((it) => resolve.color(projects, it));
+}
 
 function sortedItems(scheduleId: ScheduleId): ScheduleItem[] {
   return effectiveItems.value

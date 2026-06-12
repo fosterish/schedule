@@ -49,10 +49,10 @@
 }
 
 .templates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin-top: 16px;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
 }
 
 .templatesHead {
@@ -61,20 +61,34 @@
   justify-content: space-between;
   font-size: 14px;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .templateRow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
+  overflow: hidden;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+
+.templateRow:hover {
+  border-color: color-mix(in srgb, var(--fg) 24%, var(--border));
 }
 
 .templateName {
+  position: relative;
+  z-index: 1;
   flex: 1;
+  min-width: 0;
   text-align: left;
-  padding: 6px 0;
+  padding: 8px 0;
   font: inherit;
+  font-weight: 600;
   color: var(--fg);
   background: transparent;
   border: none;
@@ -83,6 +97,27 @@
 
 .templateName:hover {
   color: var(--accent);
+}
+
+.templateTrash {
+  position: relative;
+  z-index: 1;
+}
+
+/* Faint timeline preview washed across the row behind the name. */
+.fillBar {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.fillBlock {
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 
 .empty {

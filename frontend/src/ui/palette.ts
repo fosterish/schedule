@@ -28,15 +28,19 @@ export function paletteColor(key: Color): string {
   return (BY_KEY.get(key) ?? BY_KEY.get(DEFAULT_ITEM_COLOR)!).hex;
 }
 
-export function randomItemColor(): Color {
-  return randomOf("cool");
+// A random cool color, avoiding `exclude` (a neighbour's color) when that still
+// leaves a choice; otherwise any cool color.
+export function randomItemColor(exclude: readonly Color[] = []): Color {
+  return randomOf("cool", exclude);
 }
 
 export function randomProjectColor(): Color {
   return randomOf("warm");
 }
 
-function randomOf(group: "cool" | "warm"): Color {
+function randomOf(group: "cool" | "warm", exclude: readonly Color[] = []): Color {
   const candidates = PALETTE.filter((p) => p.group === group);
-  return candidates[Math.floor(Math.random() * candidates.length)]!.key;
+  const pool = candidates.filter((p) => !exclude.includes(p.key));
+  const from = pool.length > 0 ? pool : candidates;
+  return from[Math.floor(Math.random() * from.length)]!.key;
 }

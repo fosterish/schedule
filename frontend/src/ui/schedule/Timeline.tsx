@@ -40,6 +40,11 @@ import s from "./Timeline.module.css";
 // Scroll container vertical padding (top + bottom), excluded from fit height.
 const SCROLL_PAD_PX = 64;
 
+// Entry pan (tab switch / reload): the most recent fixed edge rests this far
+// below the top; the cursor is kept at least this far above the bottom.
+const ENTRY_EDGE_TOP_PX = 56;
+const ENTRY_CURSOR_BOTTOM_PX = 96;
+
 interface DragState {
   draggedId: string;
   startY: number;
@@ -188,6 +193,9 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
   const forceMorph = useRef(false);
   const pendingPin = useRef<PinIntent | null>(null);
   const prevViewportH = useRef(0);
+  // The schedule already given its one entry pan, so it isn't re-panned on every
+  // viewport resize (only on mount / when the schedule itself changes).
+  const entryPannedFor = useRef<ScheduleId | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [resizeDrag, setResizeDrag] = useState<ResizeState | null>(null);
   const [viewportH, setViewportH] = useState(0);
@@ -243,6 +251,36 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
     uistate.fitScheduleId.value = null;
     uistate.setZoom(fit);
   }, [fit, scheduleId]);
+
+  // On entering the schedule (mount via tab switch / reload), bring the time
+  // cursor into view: pan the most recent fixed edge at or before the cursor to
+  // a comfortable offset below the top, then zoom out only as far as needed so
+  // the cursor also clears a comfortable margin above the bottom. Once per
+  // schedule, after the viewport is measured; the morph glides it into place.
+  useEffect(() => {
+    if (!cursorEnabled || now == null || fit <= 0 || viewportH <= 0) return;
+    if (entryPannedFor.current === scheduleId) return;
+    entryPannedFor.current = scheduleId;
+
+    const edges = [bounds.start, bounds.end];
+    for (const it of view.items) {
+      const b = rawById.get(it.id)?.bounds;
+      if (b?.start != null) edges.push(it.start);
+      if (b?.end != null) edges.push(it.end);
+    }
+    const prior = edges.filter((e) => e <= now);
+    const edge = prior.length > 0 ? Math.max(...prior) : now;
+
+    const base = Math.max(uistate.zoom.value, fit);
+    const gap = now - edge;
+    const room = viewportH - ENTRY_EDGE_TOP_PX - ENTRY_CURSOR_BOTTOM_PX;
+    const targetZoom = gap > 0 && room > 0 ? Math.max(fit, Math.min(base, room / gap)) : base;
+
+    pendingPin.current = { minute: edge, anchorPx: ENTRY_EDGE_TOP_PX };
+    forceMorph.current = true;
+    uistate.setZoom(targetZoom);
+    bumpFrame((f) => f + 1);
+  }, [viewportH, fit, cursorEnabled, scheduleId]);
 
   useEffect(() => {
     const el = scroll.current;
@@ -581,7 +619,7 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
     // An explicit (detached) cursor steers the slot; a live/absent cursor leaves
     // placement to the least-strain rule, anchored at `now`.
     const explicit = isLive ? null : cursor;
-    const id = scheduleOps.insertItem(scheduleId, explicit, now, randomItemColor());
+    const id = scheduleOps.insertItem(scheduleId, explicit, now, randomItemColor);
     if (id != null) uistate.selectItem(id, "title");
   }
 
