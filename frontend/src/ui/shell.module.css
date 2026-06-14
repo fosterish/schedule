@@ -27,13 +27,13 @@
 }
 
 /* On narrow screens the user row floats above the tabs to save horizontal room. */
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .narrowBar {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
-    padding: 2px 10px;
+    padding: 2px 10px 0;
     background: var(--bg-elevated);
     line-height: 1.2;
   }
@@ -43,6 +43,10 @@
     height: auto;
     padding: 0;
     font-size: 12px;
+  }
+
+  .tabs {
+    padding-top: 2px;
   }
 
   .wideUser {

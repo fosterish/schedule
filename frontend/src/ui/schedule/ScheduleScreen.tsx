@@ -5,6 +5,7 @@ import { useLocation } from "preact-iso";
 import type { ScheduleItem } from "@bindings/ScheduleItem";
 import * as layout from "@lib/schedule/layout";
 import * as run from "@lib/schedule/run";
+import * as split from "@lib/schedule/split";
 import type { ScheduleView } from "@lib/schedule/resolve";
 import { effectiveItems, effectiveSchedules, effectiveTemplates } from "@state/pending";
 import * as scheduleOps from "@state/mutations/schedule";
@@ -14,7 +15,7 @@ import { Combobox } from "@ui/components/Combobox";
 import { HistoryControls } from "@ui/components/HistoryControls";
 import { NewButton } from "@ui/components/NewButton";
 import { TrashButton } from "@ui/components/TrashButton";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@ui/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SplitIcon } from "@ui/components/icons";
 
 import { RunControls } from "./RunControls";
 import { ScheduleBoundsBar } from "./ScheduleBounds";
@@ -64,18 +65,48 @@ export function ScheduleScreen({ view, mode, date }: Props): JSX.Element {
     flags = run.flags(items, layout.compute(items, span), runMinute, span);
   }
 
-  // Right-aligned start/end fields that share the toolbar row with the mode's
-  // left-aligned buttons.
-  const boundsBar = (): JSX.Element | null =>
+  // The toolbar's properties section (right on wide screens, bottom row when
+  // narrow): editable start/end fields. The tools section holds the icon buttons.
+  const propsSection = (): JSX.Element | null =>
     schedule ? (
-      <ScheduleBoundsBar
-        start={schedule.start}
-        end={schedule.end}
-        onSet={(edge, minute) =>
-          scheduleOps.patchScheduleBounds(schedule.id, edge === "start" ? { start: minute } : { end: minute })
-        }
-      />
+      <div class={s.props}>
+        <ScheduleBoundsBar
+          start={schedule.start}
+          end={schedule.end}
+          onSet={(edge, minute) =>
+            scheduleOps.patchScheduleBounds(schedule.id, edge === "start" ? { start: minute } : { end: minute })
+          }
+        />
+      </div>
     ) : null;
+
+  // Split acts at the cursor (the play head), falling back to now. It targets the
+  // item that strictly contains that minute, so it's disabled in a gap, on a
+  // boundary between items, or on a schedule edge.
+  const splitMinute = uistate.cursorMinute.value ?? view?.nowMinute ?? null;
+  const splitTargetId =
+    schedule && view && splitMinute != null ? split.targetAt(view.items, splitMinute) : null;
+  const splitItem = (): void => {
+    if (schedule && splitMinute != null && scheduleOps.splitItem(schedule.id, splitMinute) != null) {
+      uistate.panToCursor();
+    }
+  };
+
+  // The Split tool closes every mode's toolbar, set off by a vertical rule.
+  const splitTool = (
+    <>
+      <div class={s.divider} aria-hidden="true" />
+      <button
+        type="button"
+        class={s.splitBtn}
+        title="Split item at cursor"
+        disabled={splitTargetId == null}
+        onClick={splitItem}
+      >
+        <SplitIcon />
+      </button>
+    </>
+  );
 
   const hasTitle = (schedule?.name ?? "").trim() !== "";
   const titlePlaceholder =
@@ -116,32 +147,47 @@ export function ScheduleScreen({ view, mode, date }: Props): JSX.Element {
       </header>
       {mode === "date" && date != null && (
         <div class={s.subheader}>
-          <div class={s.nav}>
-            <button type="button" class={s.navBtn} title="Previous day" onClick={() => route(`/date/${shiftDate(date, -1)}`)}>
-              <ChevronLeftIcon />
-            </button>
-            <button type="button" class={s.navBtn} title="Next day" onClick={() => route(`/date/${shiftDate(date, 1)}`)}>
-              <ChevronRightIcon />
-            </button>
+          <div class={s.tools}>
+            <div class={s.toolsMain}>
+              <div class={s.nav}>
+                <button type="button" class={s.navBtn} title="Previous day" onClick={() => route(`/date/${shiftDate(date, -1)}`)}>
+                  <ChevronLeftIcon />
+                </button>
+                <button type="button" class={s.navBtn} title="Next day" onClick={() => route(`/date/${shiftDate(date, 1)}`)}>
+                  <ChevronRightIcon />
+                </button>
+              </div>
+              <button type="button" class={s.todayBtn} onClick={() => route("/today")}>
+                Today
+              </button>
+            </div>
+            {splitTool}
           </div>
-          <button type="button" class={s.todayBtn} onClick={() => route("/today")}>
-            Today
-          </button>
-          {boundsBar()}
+          {propsSection()}
         </div>
       )}
       {mode === "template" && (
         <div class={s.subheader}>
-          <button type="button" class={s.todayBtn} onClick={() => route("/today")}>
-            Today
-          </button>
-          {boundsBar()}
+          <div class={s.tools}>
+            <div class={s.toolsMain}>
+              <button type="button" class={s.todayBtn} onClick={() => route("/today")}>
+                Today
+              </button>
+            </div>
+            {splitTool}
+          </div>
+          {propsSection()}
         </div>
       )}
       {mode === "today" && (
         <div class={s.subheader}>
-          <RunControls scheduleId={schedule?.id ?? null} flags={flags} atMinute={runMinute} />
-          {boundsBar()}
+          <div class={s.tools}>
+            <div class={s.toolsMain}>
+              <RunControls scheduleId={schedule?.id ?? null} flags={flags} atMinute={runMinute} />
+            </div>
+            {splitTool}
+          </div>
+          {propsSection()}
         </div>
       )}
       {schedule && view ? (

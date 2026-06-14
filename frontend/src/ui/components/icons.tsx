@@ -170,6 +170,26 @@ export const GearIcon = (p: Props): JSX.Element =>
     p,
   );
 
+// A single block sliced by a gapped cut line: its side walls run from each cap
+// down toward the line but stop short of it, leaving the split open. Six short
+// dashes radiate from (but don't meet at) the split point (the cursor).
+export const SplitIcon = (p: Props): JSX.Element =>
+  svg(
+    <>
+      <path d="M3 10.5V3.5Q3 2 4.5 2H19.5Q21 2 21 3.5V10.5" />
+      <path d="M3 16.5V20.5Q3 22 4.5 22H19.5Q21 22 21 20.5V16.5" />
+      <path d="M1 13.5h6.5" />
+      <path d="M16.5 13.5h6.5" />
+      <path d="M12 10.1v0.9" />
+      <path d="M12 16v0.9" />
+      <path d="M9.84 12.25L9.06 11.8" />
+      <path d="M14.16 14.75L14.94 15.2" />
+      <path d="M14.16 12.25L14.94 11.8" />
+      <path d="M9.84 14.75L9.06 15.2" />
+    </>,
+    p,
+  );
+
 // A pin/anchor for the start/duration/end fixedness toggles.
 export const AnchorIcon = (p: Props): JSX.Element =>
   svg(

@@ -12,6 +12,8 @@ describe("fmtClock", () => {
   it("marks day overflow/underflow", () => {
     expect(fmtClock(1440)).toBe("00:00+1");
     expect(fmtClock(1500)).toBe("01:00+1");
+    expect(fmtClock(2880)).toBe("00:00+2");
+    expect(fmtClock(2940)).toBe("01:00+2");
     expect(fmtClock(-30)).toBe("23:30-1");
   });
 
@@ -57,8 +59,15 @@ describe("parseClockToMin", () => {
     expect(parseClockToMin("1h30m")).toBe(90);
   });
 
+  it("accepts the two-day ceiling expressed any number of ways", () => {
+    expect(parseClockToMin("00:00+2")).toBe(2880);
+    expect(parseClockToMin("24:00+1")).toBe(2880);
+    expect(parseClockToMin("48:00")).toBe(2880);
+  });
+
   it("rejects out-of-range and garbage", () => {
-    expect(parseClockToMin("48:00")).toBeNull();
+    expect(parseClockToMin("48:01")).toBeNull();
+    expect(parseClockToMin("72:00")).toBeNull();
     expect(parseClockToMin("")).toBeNull();
     expect(parseClockToMin("nope")).toBeNull();
   });

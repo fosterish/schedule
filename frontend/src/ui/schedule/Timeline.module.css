@@ -13,7 +13,7 @@
   touch-action: pan-y;
 }
 
-/* Gutters on each side: hour labels left, media badges right. Lines and the
+/* Gutters on each side: time labels left, media badges right. Lines and the
    time cursor span both gutters; items sit between them. */
 .timeline {
   position: relative;
@@ -22,7 +22,7 @@
   min-height: 200px;
 }
 
-.hourLine {
+.tickLine {
   position: absolute;
   left: calc(-1 * var(--gutter));
   right: calc(-1 * var(--gutter));
@@ -30,9 +30,10 @@
   pointer-events: none;
 }
 
-.hourLabel {
+.tickLabel {
   position: absolute;
-  left: 0;
+  /* Nudged left so a "+1" day suffix on late times still clears the items. */
+  left: -2px;
   top: -8px;
   font-size: var(--font-small);
   font-variant-numeric: tabular-nums;
@@ -210,7 +211,7 @@
 
 /* Wide screens: the "New item" header button replaces the round add button, and
    the zoom controls anchor to the timeline viewport's upper-right corner. */
-@media (min-width: 641px) {
+@media (min-width: 521px) {
   .insert {
     display: none;
   }

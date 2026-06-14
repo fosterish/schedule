@@ -6,8 +6,6 @@ import * as layout from "./layout";
 
 export type Edge = "start" | "end";
 
-const DAY_MINUTES = 1440;
-
 export interface SlideResult {
   bounds: ItemBounds;
   span: layout.Span;
@@ -42,7 +40,7 @@ export function slideDuration(
 ): SlideResult {
   const b = items[index]!.bounds;
   const current = b.fixedDuration ?? Math.max(layout.MIN_DURATION, b.durationTarget);
-  const target = clampInt(desired, layout.MIN_DURATION, DAY_MINUTES);
+  const target = clampInt(desired, layout.MIN_DURATION, layout.FRAME_END);
   return slideParam(items, span, index, current, target, (v) => ({ ...b, fixedDuration: v }));
 }
 
@@ -87,30 +85,34 @@ export function reinsertByValue(
   if (!verdict.ok) {
     return err({ error: verdict.error, blockerId: culprit(order, movedId, verdict.error) });
   }
+  // A rigid item's derived end has no fixed anchor for validate to check, so reject
+  // placements whose trailing run overruns the span (it couldn't grow far enough).
+  if (layout.minEndToFit(order, sp) > sp.end) {
+    return err({ error: { kind: "belowMin", indices: [target] }, blockerId: null });
+  }
   return ok({ afterId, bounds: newBounds, span: sp, layout: laid });
 }
 
-// Clamp a dragged/stepped schedule start to the DB window (start in [0,1439],
-// end-start <= 1440) and outside every fixed item anchor. End is symmetric.
+// Clamp a dragged/stepped schedule edge to the day frame (start in
+// [0,MAX_SCHEDULE_START], end up to FRAME_END) and to the furthest the edge can
+// move while every item still fits. This honours fixed item anchors and dynamic
+// edges alike: shrinking stops where a rigid or minimum-width item leaves no
+// leeway; growing outward is always feasible, up to the absolute ceiling.
 export function clampScheduleStart(items: layout.LayoutItem[], span: layout.Span, desired: number): number {
-  const anchors = anchorMinutes(items);
-  const hi = Math.min(1439, span.end - 1, anchors.length > 0 ? Math.min(...anchors) : Infinity);
-  return clampInt(desired, Math.max(0, span.end - DAY_MINUTES), hi);
+  const target = clampInt(desired, layout.FRAME_START, Math.min(layout.MAX_SCHEDULE_START, span.end - 1));
+  return furthestFeasible(span.start, target, (v) => spanFeasible(items, { start: v, end: span.end }));
 }
 
 export function clampScheduleEnd(items: layout.LayoutItem[], span: layout.Span, desired: number): number {
-  const anchors = anchorMinutes(items);
-  const lo = Math.max(span.start + 1, anchors.length > 0 ? Math.max(...anchors) : -Infinity);
-  return clampInt(desired, lo, span.start + DAY_MINUTES);
+  const target = clampInt(desired, span.start + 1, layout.FRAME_END);
+  return furthestFeasible(span.end, target, (v) => spanFeasible(items, { start: span.start, end: v }));
 }
 
-function anchorMinutes(items: layout.LayoutItem[]): number[] {
-  const xs: number[] = [];
-  for (const it of items) {
-    if (it.bounds.start != null) xs.push(it.bounds.start);
-    if (it.bounds.end != null) xs.push(it.bounds.end);
-  }
-  return xs;
+// A span fits when every item lays out validly AND the trailing run still fits
+// within it. `validate` alone misses an unbounded trailing rigid/minimum run
+// overflowing the end (no fixed wall to overlap), so check minEndToFit too.
+function spanFeasible(items: layout.LayoutItem[], span: layout.Span): boolean {
+  return layout.minEndToFit(items, span) <= span.end && layout.validate(items, layout.compute(items, span), span).ok;
 }
 
 // --- internals ---
@@ -137,7 +139,7 @@ function slideParam(
     const cand = mutate(v);
     const order = withCandidate(items, index, cand);
     const sp = spanFor(items, index, span, cand);
-    return layout.validate(order, layout.compute(order, sp), sp).ok;
+    return spanFeasible(order, sp);
   };
   const value = furthestFeasible(Math.round(current), Math.round(desired), feasible);
   const bounds = mutate(value);
@@ -167,8 +169,8 @@ function furthestFeasible(current: number, desired: number, feasible: (v: number
 
 // Minimal outward-only growth so the candidate's fixed edges fit. The start grows
 // only when no fixed edge precedes the item (the run reaches the schedule start),
-// by the preceding run's reserved width; the end is symmetric. Clamped to the DB
-// window against the unchanged opposite bound. A fixed-neighbour wall isn't grown
+// by the preceding run's reserved width; the end is symmetric. Clamped to the day
+// frame against the unchanged opposite bound. A fixed-neighbour wall isn't grown
 // past here; validate rejects those instead.
 function spanFor(
   items: layout.LayoutItem[],
@@ -185,12 +187,12 @@ function spanFor(
   if (r.end != null && reachesEnd(items, index)) {
     end = Math.max(end, r.end + runNeed(items, index + 1, items.length));
   }
-  start = clampInt(start, Math.max(0, span.end - DAY_MINUTES), span.start);
-  end = clampInt(end, span.end, span.start + DAY_MINUTES);
+  start = clampInt(start, layout.FRAME_START, span.start);
+  end = clampInt(end, span.end, layout.FRAME_END);
   // Also grow the end when a (fixed-duration) item's reserved width overflows the
   // trailing run, not just when a fixed edge presses past the boundary.
   const order = withCandidate(items, index, cand);
-  end = clampInt(layout.minEndToFit(order, { start, end }), span.end, start + DAY_MINUTES);
+  end = clampInt(layout.minEndToFit(order, { start, end }), span.end, layout.FRAME_END);
   return { start, end };
 }
 

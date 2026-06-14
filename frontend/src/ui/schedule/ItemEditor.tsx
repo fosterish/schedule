@@ -68,7 +68,7 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
         onEdit={(t) => {
           const v = parseClockToMin(t);
           if (v == null) return;
-          if (startDerived) scheduleOps.slideItemDuration(sid, raw.id, frameEnd - v);
+          if (startDerived) scheduleOps.setItemDuration(sid, raw.id, frameEnd - v);
           else scheduleOps.setItemEdgeValue(sid, raw.id, "start", v);
         }}
         onToggle={() => scheduleOps.patchItemBounds(raw.id, { start: startFixed ? null : frameStart })}
@@ -84,7 +84,7 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
         onEdit={(t) => {
           const v = parseDurationToMin(t);
           if (v == null) return;
-          if (durationFixed) scheduleOps.slideItemDuration(sid, raw.id, v);
+          if (durationFixed) scheduleOps.setItemDuration(sid, raw.id, v);
           else scheduleOps.patchItemBounds(raw.id, { durationTarget: v });
         }}
         onToggle={() =>
@@ -105,7 +105,7 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
         onEdit={(t) => {
           const v = parseClockToMin(t);
           if (v == null) return;
-          if (endDerived) scheduleOps.slideItemDuration(sid, raw.id, v - frameStart);
+          if (endDerived) scheduleOps.setItemDuration(sid, raw.id, v - frameStart);
           else scheduleOps.setItemEdgeValue(sid, raw.id, "end", v);
         }}
         onToggle={() => scheduleOps.patchItemBounds(raw.id, { end: endFixed ? null : frameEnd })}

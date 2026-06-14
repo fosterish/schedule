@@ -12,19 +12,98 @@
   align-items: flex-start;
 }
 
-/* Toolbar row: left-aligned mode buttons, right-aligned start/end fields (the
-   bar pushes itself right). Top-aligned so the buttons hold their place when the
-   fields stack on narrow screens. */
+/* Toolbar: tools (icon buttons) on the left, properties on the right. On narrow
+   screens the two sections stack into their own rows, tools above properties,
+   left- and right-aligned respectively. */
 .subheader {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   padding: 6px 12px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--bar-shadow);
+}
+
+.tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The mode's own icon buttons; the Split tool sits past a vertical rule. */
+.toolsMain {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Vertical rule setting the Split tool off from the mode buttons. */
+.divider {
+  width: 1px;
+  height: var(--control-h);
+  background: var(--border);
+}
+
+.splitBtn {
+  composes: btn from "../styles/button.module.css";
+  width: var(--control-h);
+  height: var(--control-h);
+  font-size: 20px;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.splitBtn.splitBtn {
+  background: var(--bg);
+}
+
+.splitBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.splitBtn:disabled {
+  color: var(--muted);
+}
+
+.props {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+@media (max-width: 520px) {
+  .subheader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  /* Full-width divider between the stacked rows, matching the header's. Negative
+     margins extend the line edge-to-edge; padding re-insets the controls. */
+  .tools {
+    align-self: stretch;
+    margin: 0 -12px;
+    padding: 0 12px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Tools share their row: mode buttons stay left, Split moves to the right edge
+     (the vertical rule only makes sense when they sit together). */
+  .divider {
+    display: none;
+  }
+
+  .splitBtn {
+    margin-left: auto;
+  }
+
+  .props {
+    align-self: flex-end;
+    margin-left: 0;
+  }
 }
 
 .nav {

@@ -24,7 +24,7 @@
 }
 
 /* The round bottom-anchored add button replaces this on narrow screens. */
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .btn {
     display: none;
   }

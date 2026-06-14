@@ -22,6 +22,32 @@ export function minuteOf(y: number, span: Span, pxPerMin: number): number {
   return Math.round(y / pxPerMin) + span.start;
 }
 
+// Labeled tick intervals in minutes, finest to coarsest (1 min .. 2 hours).
+const TICK_INTERVALS = [1, 5, 15, 30, 60, 120];
+
+// Minimum on-screen gap between labeled lines; below it, step to a coarser
+// interval so labels never crowd.
+const MIN_TICK_GAP_PX = 48;
+
+// Finest interval whose on-screen gap stays at or above the threshold; falls
+// back to the coarsest (2 hours) when even that is too tight.
+export function tickInterval(pxPerMin: number): number {
+  for (const interval of TICK_INTERVALS) {
+    if (interval * pxPerMin >= MIN_TICK_GAP_PX) return interval;
+  }
+  return TICK_INTERVALS[TICK_INTERVALS.length - 1]!;
+}
+
+// Labeled minute marks across the span at the zoom-appropriate interval.
+export function tickLines(span: Span, pxPerMin: number): number[] {
+  const interval = tickInterval(pxPerMin);
+  const first = Math.ceil(span.start / interval) * interval;
+  const last = Math.floor(span.end / interval) * interval;
+  const out: number[] = [];
+  for (let m = first; m <= last; m += interval) out.push(m);
+  return out;
+}
+
 export interface ZoomBounds {
   min: number;
   max: number;

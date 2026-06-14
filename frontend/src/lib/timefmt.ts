@@ -1,14 +1,20 @@
-// Clock (HH:MM, +/-1 day) and duration (HH:MM) formatting and parsing. Both
+// Clock (HH:MM, +/-N days) and duration (HH:MM) formatting and parsing. Both
 // parsers accept bare minutes, :minutes, and unit-suffixed forms. Hours past 23
-// roll into the next day (e.g. "25h" -> 01:00+1).
+// roll into the next day (e.g. "25h" -> 01:00+1). Clock values span the two-day
+// frame, up to 00:00+2 (48h).
+
+const DAY = 1440;
+const CLOCK_MIN = -DAY;
+const CLOCK_MAX = 2 * DAY;
 
 export function fmtClock(minute: number | null): string {
   if (minute == null) return "\u2014";
-  const wrapped = ((minute % 1440) + 1440) % 1440;
-  const day = minute >= 1440 ? "+1" : minute < 0 ? "-1" : "";
+  const day = Math.floor(minute / DAY);
+  const wrapped = minute - day * DAY;
+  const suffix = day > 0 ? `+${day}` : day < 0 ? String(day) : "";
   const h = Math.floor(wrapped / 60);
   const m = wrapped % 60;
-  return `${pad(h)}:${pad(m)}${day}`;
+  return `${pad(h)}:${pad(m)}${suffix}`;
 }
 
 export function fmtDuration(minute: number | null): string {
@@ -32,16 +38,16 @@ export function parseClockToMin(s: string): number | null {
   const t = s.trim();
   if (!t) return null;
   let total: number | null = null;
-  const hm = /^(\d{1,2}):([0-5]\d)(\+1|-1)?$/.exec(t);
+  const hm = /^(\d{1,2}):([0-5]\d)([+-]\d+)?$/.exec(t);
   if (hm) {
     total = Number(hm[1]) * 60 + Number(hm[2]) + daySuffix(hm[3]);
   } else {
-    const suffix = /(\+1|-1)$/.exec(t);
+    const suffix = /([+-]\d+)$/.exec(t);
     const flex = parseUnitOrColon(suffix ? t.slice(0, -suffix[0].length) : t);
     if (flex != null) total = flex + daySuffix(suffix?.[1]);
   }
-  // Allow up to a full day of overflow/underflow; fmtClock renders +/-1.
-  return total != null && total >= -1440 && total < 2880 ? total : null;
+  // Spans the two-day frame plus a day of underflow; the absolute max is 00:00+2.
+  return total != null && total >= CLOCK_MIN && total <= CLOCK_MAX ? total : null;
 }
 
 export function parseDurationToMin(s: string): number | null {
@@ -54,7 +60,7 @@ export function parseDurationToMin(s: string): number | null {
 }
 
 function daySuffix(s: string | undefined): number {
-  return s === "+1" ? 1440 : s === "-1" ? -1440 : 0;
+  return s ? Number(s) * DAY : 0;
 }
 
 function pad(n: number): string {

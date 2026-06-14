@@ -7,8 +7,6 @@ import * as layout from "./layout";
 
 export type { DragDir };
 
-const DAY_MINUTES = 1440;
-
 // A pinned edge (start or end) makes an item immovable; reorders flow around it
 // without shifting it. A bare fixed duration still drags.
 export function isAnchored(b: ItemBounds): boolean {
@@ -88,9 +86,9 @@ function targetIndex(
 }
 
 // Span grown outward (never inward) for a move onto the head/tail: shift the
-// touched edge by the leading/trailing segment's shortfall, clamped to the DB
-// window (start in [0,1439], end-start <= 1440). When the clamp can't cover the
-// shortfall the layout stays infeasible and validate rejects the move.
+// touched edge by the leading/trailing segment's shortfall, clamped to the day
+// frame [FRAME_START, FRAME_END]. When the clamp can't cover the shortfall the
+// layout stays infeasible and validate rejects the move.
 function adjustSpan(order: layout.LayoutItem[], span: layout.Span, target: number): layout.Span {
   const n = order.length;
   const r = order.map((it) => layout.resolve(it.bounds));
@@ -99,14 +97,14 @@ function adjustSpan(order: layout.LayoutItem[], span: layout.Span, target: numbe
     const boundary = right ?? span.end;
     const deficit = runNeed(r, 0, last) - (boundary - span.start);
     if (deficit <= 0) return span;
-    const start = Math.max(0, span.end - DAY_MINUTES, span.start - deficit);
+    const start = Math.max(layout.FRAME_START, span.start - deficit);
     return { start, end: span.end };
   }
   if (target === n - 1) {
     const tail = trailingSegment(r, span);
     const deficit = runNeed(r, tail.from, n - 1) - (span.end - tail.left);
     if (deficit <= 0) return span;
-    const end = Math.min(span.start + DAY_MINUTES, span.end + deficit);
+    const end = Math.min(layout.FRAME_END, span.end + deficit);
     return { start: span.start, end };
   }
   return span;

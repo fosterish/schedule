@@ -27,7 +27,7 @@
   margin-left: auto;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .filter {
     flex: 1;
   }
@@ -53,7 +53,7 @@
 }
 
 /* Wide screens use the explicit "New project" button in the header instead. */
-@media (min-width: 641px) {
+@media (min-width: 521px) {
   .add {
     display: none;
   }

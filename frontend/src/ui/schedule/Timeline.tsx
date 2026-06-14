@@ -32,6 +32,7 @@ import {
   nextZoomIn,
   nextZoomOut,
   spanOf,
+  tickLines,
   zoomBounds,
   zoomLadder,
 } from "./geometry";
@@ -252,27 +253,23 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
     uistate.setZoom(fit);
   }, [fit, scheduleId]);
 
-  // On entering the schedule (mount via tab switch / reload), bring the time
-  // cursor into view: pan the most recent fixed edge at or before the cursor to
-  // a comfortable offset below the top, then zoom out only as far as needed so
-  // the cursor also clears a comfortable margin above the bottom. Once per
-  // schedule, after the viewport is measured; the morph glides it into place.
-  useEffect(() => {
-    if (!cursorEnabled || now == null || fit <= 0 || viewportH <= 0) return;
-    if (entryPannedFor.current === scheduleId) return;
-    entryPannedFor.current = scheduleId;
-
+  // Bring a play-head `target` minute into view: pin the most recent fixed edge
+  // at or before it a comfortable offset below the top, then zoom out only as far
+  // as needed so the target also clears a comfortable margin above the bottom.
+  // The morph glides it into place.
+  function panToMinute(target: number): void {
+    if (fit <= 0 || viewportH <= 0) return;
     const edges = [bounds.start, bounds.end];
     for (const it of view.items) {
       const b = rawById.get(it.id)?.bounds;
       if (b?.start != null) edges.push(it.start);
       if (b?.end != null) edges.push(it.end);
     }
-    const prior = edges.filter((e) => e <= now);
-    const edge = prior.length > 0 ? Math.max(...prior) : now;
+    const prior = edges.filter((e) => e <= target);
+    const edge = prior.length > 0 ? Math.max(...prior) : target;
 
     const base = Math.max(uistate.zoom.value, fit);
-    const gap = now - edge;
+    const gap = target - edge;
     const room = viewportH - ENTRY_EDGE_TOP_PX - ENTRY_CURSOR_BOTTOM_PX;
     const targetZoom = gap > 0 && room > 0 ? Math.max(fit, Math.min(base, room / gap)) : base;
 
@@ -280,7 +277,23 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
     forceMorph.current = true;
     uistate.setZoom(targetZoom);
     bumpFrame((f) => f + 1);
+  }
+
+  // On entering the schedule (mount via tab switch / reload), pan the live cursor
+  // into view. Once per schedule, after the viewport is measured.
+  useEffect(() => {
+    if (!cursorEnabled || now == null || fit <= 0 || viewportH <= 0) return;
+    if (entryPannedFor.current === scheduleId) return;
+    entryPannedFor.current = scheduleId;
+    panToMinute(now);
   }, [viewportH, fit, cursorEnabled, scheduleId]);
+
+  // An explicit request (e.g. after a split) re-pans the play head into view.
+  const cursorPanNonce = uistate.cursorPanRequest.value;
+  useEffect(() => {
+    if (cursorPanNonce === 0 || displayCursor == null) return;
+    panToMinute(displayCursor);
+  }, [cursorPanNonce]);
 
   useEffect(() => {
     const el = scroll.current;
@@ -743,9 +756,9 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
         onClick={onTimelineClick}
       >
         <div ref={timelineEl} class={s.timeline} style={`height:${height}px`}>
-          {hourLines(span).map((h) => (
-            <div key={h} class={s.hourLine} style={`top:${dy(h * 60)}px`}>
-              <span class={s.hourLabel}>{fmtClock(h * 60)}</span>
+          {tickLines(span, disp.zoom).map((m) => (
+            <div key={m} class={s.tickLine} style={`top:${dy(m)}px`}>
+              <span class={s.tickLabel}>{fmtClock(m)}</span>
             </div>
           ))}
           {view.schedule && (
@@ -901,14 +914,6 @@ function mediaBadges(view: ScheduleView, flags: RunFlags | null, now: number | n
 
 function clampMinute(minute: number, span: Span): number {
   return Math.min(span.end, Math.max(span.start, minute));
-}
-
-function hourLines(span: Span): number[] {
-  const first = Math.ceil(span.start / 60);
-  const last = Math.floor(span.end / 60);
-  const out: number[] = [];
-  for (let h = first; h <= last; h++) out.push(h);
-  return out;
 }
 
 function touchDist(e: TouchEvent): number {

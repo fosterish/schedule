@@ -3,9 +3,12 @@ import type { ScheduleItemId } from "@bindings/ScheduleItemId";
 import { type Result, ok, err } from "@lib/result";
 
 export const MIN_DURATION = 1;
-// Two-day cursor range (today + overflow): minutes 0..2879.
+// Two-day frame (today + overflow): minutes 0..2880, i.e. up to 00:00+2 (48h).
+// This is the absolute ceiling schedules and items lay out within.
 export const FRAME_START = 0;
-export const FRAME_END = 2879;
+export const FRAME_END = 2880;
+// A schedule starts within the first day (minute-of-day); items may start later.
+export const MAX_SCHEDULE_START = 1439;
 // Default bounds for a new schedule (8am–10pm).
 export const DEFAULT_START = 8 * 60;
 export const DEFAULT_END = 22 * 60;
@@ -151,9 +154,10 @@ export function validate(items: LayoutItem[], frames: LayoutFrame[], span: Span)
   return ok(undefined);
 }
 
-// Minimal schedule end (never below span.end) so the trailing run of items fits
-// at their rigid/minimum widths. A fixed end or a following fixed start is a wall
-// growth can't move; validate rejects content that overflows those instead.
+// Minimal schedule end (never below span.end) so every item fits: the trailing
+// run at its rigid/minimum widths, plus wherever the last item actually ends.
+// A rigid item (fixed start + duration) ends at start+duration with no fixed-end
+// anchor, so its overflow is invisible to validate; the final cursor catches it.
 export function minEndToFit(items: LayoutItem[], span: Span): number {
   const r = items.map((it) => resolve(it.bounds));
   const n = r.length;
@@ -173,7 +177,7 @@ export function minEndToFit(items: LayoutItem[], span: Span): number {
     }
     i = last + 1;
   }
-  return need;
+  return Math.max(need, cursor);
 }
 
 export interface Resolved {

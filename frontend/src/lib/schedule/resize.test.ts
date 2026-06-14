@@ -75,6 +75,50 @@ describe("resize.slideEdge schedule growth", () => {
   });
 });
 
+describe("resize.clampScheduleEnd", () => {
+  test("grows freely outward, up to the absolute ceiling", () => {
+    const span: layout.Span = { start: 480, end: 900 };
+    const items = [li("R", { fixedDuration: 300 })];
+    expect(resize.clampScheduleEnd(items, span, 2000)).toBe(2000);
+    expect(resize.clampScheduleEnd(items, span, 5000)).toBe(layout.FRAME_END);
+  });
+
+  test("shrinking stops at a trailing rigid item's required width (no leeway)", () => {
+    const span: layout.Span = { start: 480, end: 900 };
+    // R is rigid 300 and trails the list: the end can't drop below 480 + 300.
+    const items = [li("R", { fixedDuration: 300 })];
+    expect(resize.clampScheduleEnd(items, span, 500)).toBe(780);
+  });
+
+  test("shrinking stops at a fixed end anchor", () => {
+    const span: layout.Span = { start: 480, end: 900 };
+    const items = [li("A", { end: 840 })];
+    expect(resize.clampScheduleEnd(items, span, 500)).toBe(840);
+  });
+
+  test("shrinking respects a trailing item with a fixed start + duration (no fixed end)", () => {
+    const span: layout.Span = { start: 480, end: 900 };
+    // R is anchored at 700 and rigid for 180m: its derived end is 880, with no
+    // fixed-end wall, so the schedule end must stop there rather than slide in.
+    const items = [li("R", { start: 700, fixedDuration: 180 })];
+    expect(resize.clampScheduleEnd(items, span, 500)).toBe(880);
+  });
+});
+
+describe("resize.clampScheduleStart", () => {
+  test("moving later stops at a fixed start anchor", () => {
+    const span: layout.Span = { start: 480, end: 900 };
+    const items = [li("A", { start: 540 })];
+    expect(resize.clampScheduleStart(items, span, 700)).toBe(540);
+  });
+
+  test("never exceeds the minute-of-day maximum", () => {
+    const span: layout.Span = { start: 1200, end: 2880 };
+    const items: layout.LayoutItem[] = [];
+    expect(resize.clampScheduleStart(items, span, 2000)).toBe(layout.MAX_SCHEDULE_START);
+  });
+});
+
 describe("resize.reinsertByValue", () => {
   // A pins the start, D the end; B and C are elastic. Frames tile at
   // 480..585, 585..690, 690..795, 795..900 (mids 532.5, 637.5, 742.5, 847.5).
@@ -98,5 +142,15 @@ describe("resize.reinsertByValue", () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.error.blockerId).toBe("F");
+  });
+
+  test("a typed start that drives a rigid item past the absolute end is rejected", () => {
+    // R is rigid 200m; pinning its start to 2800 implies an end of 3000, beyond
+    // the 2880 ceiling, so the span can't grow to fit and the move is rejected.
+    const items = [li("R", { fixedDuration: 200 })];
+    const r = resize.reinsertByValue(items, span, 0, "start", 2800);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.blockerId).toBeNull();
   });
 });

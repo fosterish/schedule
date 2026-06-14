@@ -1,5 +1,6 @@
 import type { JSX } from "preact";
 
+import * as layout from "@lib/schedule/layout";
 import { fmtClock, fmtDurationHuman, parseClockToMin, parseDurationToMin } from "@lib/timefmt";
 import * as settings from "@state/settings";
 import { pushToast } from "@state/toast";
@@ -7,7 +8,6 @@ import { StepperField } from "@ui/components/StepperField";
 
 import s from "./Settings.module.css";
 
-const DAY = 1440;
 const LEAD_STEP = 5;
 const CLOCK_STEP = 15;
 
@@ -38,24 +38,24 @@ export function Settings(): JSX.Element {
 
   function commitStart(text: string): void {
     const v = parseClockToMin(text);
-    if (v != null && v >= 0 && v <= DAY - 1) settings.setDefaultStart(v);
+    if (v != null && v >= 0 && v <= layout.MAX_SCHEDULE_START) settings.setDefaultStart(v);
   }
 
   function commitEnd(text: string): void {
     const v = parseClockToMin(text);
     const start = settings.defaultStart.value;
-    if (v != null && v > start && v <= start + DAY) settings.setDefaultEnd(v);
+    if (v != null && v > start && v <= layout.FRAME_END) settings.setDefaultEnd(v);
   }
 
   function stepStart(dir: number): void {
     const v = snap(settings.defaultStart.value, dir, CLOCK_STEP);
-    if (v >= 0 && v <= DAY - 1) settings.setDefaultStart(v);
+    if (v >= 0 && v <= layout.MAX_SCHEDULE_START) settings.setDefaultStart(v);
   }
 
   function stepEnd(dir: number): void {
     const start = settings.defaultStart.value;
     const v = snap(settings.defaultEnd.value, dir, CLOCK_STEP);
-    if (v > start && v <= start + DAY) settings.setDefaultEnd(v);
+    if (v > start && v <= layout.FRAME_END) settings.setDefaultEnd(v);
   }
 
   return (

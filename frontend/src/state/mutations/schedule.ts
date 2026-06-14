@@ -15,6 +15,7 @@ import * as reorder from "@lib/schedule/reorder";
 import * as resize from "@lib/schedule/resize";
 import * as resolve from "@lib/schedule/resolve";
 import * as run from "@lib/schedule/run";
+import * as split from "@lib/schedule/split";
 
 import { commit } from "../commit";
 import {
@@ -37,7 +38,6 @@ import { projectIndex } from "../views";
 // pure lib planners and only mint ids/keys here, where impurity is allowed.
 
 const CTX = "schedule";
-const DAY_MINUTES = 1440;
 
 // --- items ---
 
@@ -80,6 +80,30 @@ export function insertItem(
     ops.push(scheduleUpsert({ ...sched, start: plan.value.span.start, end: plan.value.span.end }));
   }
   commit(ops, CTX);
+  return id;
+}
+
+// Split the item containing `minute` (the cursor, or now) into two abutting
+// items: clone the current item right after it and divide their edges/durations
+// by the cut. Returns the clone's id, or null when the cut isn't inside an item.
+export function splitItem(scheduleId: ScheduleId, minute: number): ScheduleItemId | null {
+  const span = scheduleSpan(scheduleId);
+  if (!span) return null;
+  const rows = sortedItems(scheduleId);
+  const layoutItems = rows.map(toLayoutItem);
+  const plan = split.splitAt(layoutItems, layout.compute(layoutItems, span), minute);
+  if (!plan.ok) return null;
+  const current = rows.find((r) => r.id === plan.value.id);
+  if (!current) return null;
+  const id = newId();
+  const clone: ScheduleItem = {
+    ...current,
+    id,
+    bounds: plan.value.newBounds,
+    position: positionAfter(rows, plan.value.id, null),
+    rev: localRev(),
+  };
+  commit([upsertItem({ ...current, bounds: plan.value.bounds }), upsertItem(clone)], CTX);
   return id;
 }
 
@@ -136,6 +160,24 @@ export function slideItemDuration(scheduleId: ScheduleId, id: ScheduleItemId, de
   commitSlide(scheduleId, rows[index]!, r.bounds, r.span);
 }
 
+// Set a fixed-duration item's exact length from a typed value (or a typed derived
+// edge). Unlike the stepper/drag, a value that can't be honored in full — it would
+// push the item past the schedule's absolute end or over a neighbour — is rejected
+// with a toast so the field reverts, rather than silently clamped.
+export function setItemDuration(scheduleId: ScheduleId, id: ScheduleItemId, desired: number): void {
+  const span = scheduleSpan(scheduleId);
+  if (!span) return;
+  const rows = sortedItems(scheduleId);
+  const index = rows.findIndex((it) => it.id === id);
+  if (index < 0) return;
+  const r = resize.slideDuration(rows.map(toLayoutItem), span, index, desired);
+  if (r.value !== desired) {
+    pushToast("Can\u2019t set that \u2014 it would run past the schedule\u2019s end.", "error");
+    return;
+  }
+  commitSlide(scheduleId, rows[index]!, r.bounds, r.span);
+}
+
 // Set an edge to an exact typed value by relocating the item to the slot nearest
 // that value. Infeasible placements are rejected with a toast naming the blocker.
 export function setItemEdgeValue(
@@ -149,11 +191,20 @@ export function setItemEdgeValue(
   const rows = sortedItems(scheduleId);
   const index = rows.findIndex((it) => it.id === id);
   if (index < 0) return;
+  if (value < layout.FRAME_START || value > layout.FRAME_END) {
+    pushToast("Can\u2019t set that \u2014 it\u2019s past the schedule\u2019s absolute end.", "error");
+    return;
+  }
   const plan = resize.reinsertByValue(rows.map(toLayoutItem), span, index, edge, value);
   if (!plan.ok) {
     const blocker = plan.error.blockerId != null ? rows.find((it) => it.id === plan.error.blockerId) : null;
     const name = blocker ? itemName(blocker) : null;
-    pushToast(name ? `Can\u2019t set that time \u2014 it would overlap \u201c${name}\u201d.` : "Can\u2019t set that time here.", "error");
+    pushToast(
+      name
+        ? `Can\u2019t set that time \u2014 it would overlap \u201c${name}\u201d.`
+        : "Can\u2019t set that time \u2014 it wouldn\u2019t fit before the schedule\u2019s end.",
+      "error",
+    );
     return;
   }
   const moved = rows[index]!;
@@ -242,7 +293,7 @@ export function runAction(scheduleId: ScheduleId, action: run.RunAction, nowMinu
     const nextItems = layoutItems
       .filter((it) => !deleted.has(it.id))
       .map((it) => ({ id: it.id, bounds: patched.get(it.id) ?? it.bounds }));
-    const end = clampInt(layout.minEndToFit(nextItems, bounds), bounds.start + 1, bounds.start + DAY_MINUTES);
+    const end = clampInt(layout.minEndToFit(nextItems, bounds), bounds.start + 1, layout.FRAME_END);
     if (end > bounds.end) bounds = { ...bounds, end };
     if (bounds.start !== sched.start || bounds.end !== sched.end) {
       ops.push(scheduleUpsert({ ...sched, ...bounds }));
@@ -260,8 +311,9 @@ export function renameSchedule(id: ScheduleId, name: string): void {
   commit([{ kind: "upsert", model: { kind: "schedule", ...row, name } }], CTX);
 }
 
-// Set the schedule's hard bounds, clamped to the DB invariants (start in
-// [0,1439], 0 < end-start <= 1440) and kept outside any fixed item anchors.
+// Set the schedule's hard bounds, clamped to the day frame (start in
+// [0,MAX_SCHEDULE_START], end up to the absolute ceiling) and to the furthest
+// each edge can move while every item still fits.
 export function patchScheduleBounds(id: ScheduleId, patch: { start?: number; end?: number }): void {
   const sched = effectiveSchedules.value.find((s) => s.id === id);
   if (!sched) return;
@@ -399,16 +451,17 @@ function scheduleSpan(scheduleId: ScheduleId): layout.Span | null {
   return s ? { start: s.start, end: s.end } : null;
 }
 
-// The user's default range, clamped to the schedule DB invariants (start in
-// [0,1439], 0 < end-start <= 1440) so a stored preference can never reject.
+// The user's default range, clamped to the schedule frame (start in
+// [0,MAX_SCHEDULE_START], end up to the absolute ceiling) so a stored preference
+// can never reject.
 function defaultRange(): { start: number; end: number } {
-  const start = clampInt(defaultStart.value, 0, 1439);
-  const end = clampInt(defaultEnd.value, start + 1, start + DAY_MINUTES);
+  const start = clampInt(defaultStart.value, 0, layout.MAX_SCHEDULE_START);
+  const end = clampInt(defaultEnd.value, start + 1, layout.FRAME_END);
   return { start, end };
 }
 
 // New bounds that grow the window outward to admit a fixed item anchor, clamped
-// to the DB invariants, or null when the anchors already fit. Never shrinks.
+// to the schedule frame, or null when the anchors already fit. Never shrinks.
 function grownBounds(sched: Schedule, b: ItemBounds): { start: number; end: number } | null {
   let start = sched.start;
   let end = sched.end;
@@ -417,8 +470,8 @@ function grownBounds(sched: Schedule, b: ItemBounds): { start: number; end: numb
     if (v < start) start = v;
     if (v > end) end = v;
   }
-  start = clampInt(start, 0, 1439);
-  end = clampInt(end, start + 1, start + DAY_MINUTES);
+  start = clampInt(start, 0, layout.MAX_SCHEDULE_START);
+  end = clampInt(end, start + 1, layout.FRAME_END);
   return start === sched.start && end === sched.end ? null : { start, end };
 }
 

@@ -110,6 +110,10 @@ export function AutoField({
     clearTimer();
     editing.current = false;
     if (next !== value) onCommit(next);
+    // Form-style fields (commit on blur) re-sync to the canonical stored value, so
+    // a normalized entry ("480" -> "08:00") or a rejected one snaps back instead of
+    // keeping the raw text. On a successful change the value-effect updates it again.
+    if (commitOnBlur) setLocal(value);
   }
 
   function onFieldFocus(): void {

@@ -32,6 +32,14 @@ export function panToSelected(): void {
   panRequest.value++;
 }
 
+// Bumped to ask the timeline to pan/zoom the play head (the cursor, or now) into
+// view, reusing the entry pan — e.g. after splitting the item under the cursor.
+export const cursorPanRequest = signal(0);
+
+export function panToCursor(): void {
+  cursorPanRequest.value++;
+}
+
 export function selectItem(id: ScheduleItemId | null, focus: FocusField = null): void {
   selectedItem.value = id;
   focusOnSelect.value = id == null ? null : focus;
