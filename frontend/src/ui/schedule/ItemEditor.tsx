@@ -89,7 +89,10 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
         }}
         onToggle={() =>
           scheduleOps.patchItemBounds(raw.id, {
-            fixedDuration: durationFixed ? null : frameEnd - frameStart,
+            // Pin to the desired duration, capped at what the item actually fills.
+            fixedDuration: durationFixed
+              ? null
+              : Math.min(frameEnd - frameStart, raw.bounds.durationTarget),
           })
         }
         onStep={(d) => {
