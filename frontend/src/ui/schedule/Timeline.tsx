@@ -288,7 +288,15 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
     panToMinute(now);
   }, [viewportH, fit, cursorEnabled, scheduleId]);
 
-  // An explicit request (e.g. after a split) re-pans the play head into view.
+  // Regaining window focus re-pans the play head into view, like a tab switch.
+  useEffect(() => {
+    const onFocus = (): void => uistate.panToCursor();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
+  // An explicit request (window focus, or e.g. after a split) re-pans the play
+  // head into view.
   const cursorPanNonce = uistate.cursorPanRequest.value;
   useEffect(() => {
     if (cursorPanNonce === 0 || displayCursor == null) return;

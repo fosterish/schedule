@@ -9,15 +9,19 @@ function item(
   startMinute: number,
   fixedStart: boolean,
   title = "x",
+  endMinute = startMinute + 60,
 ): reminders.ReminderItem {
-  return { startMinute, fixedStart, title };
+  return { startMinute, endMinute, fixedStart, title };
 }
 
 describe("reminders.plan", () => {
   test("fixed-start items fire lead minutes before start", () => {
     const out = reminders.plan([item(600, true, "Standup")], 480, DAY, leads);
     expect(out).toEqual([
-      { fireAtMs: 590 * 60_000, payload: { title: "Standup", body: "Starts in 10 min" } },
+      {
+        fireAtMs: 590 * 60_000,
+        payload: { title: "Standup", body: "Starts in 10 min \u00b7 10:00 \u2013 11:00 (1h)" },
+      },
     ]);
   });
 
@@ -30,7 +34,7 @@ describe("reminders.plan", () => {
     );
     expect(out).toHaveLength(1);
     expect(out[0]!.payload.title).toBe("a");
-    expect(out[0]!.payload.body).toBe("Starting now");
+    expect(out[0]!.payload.body).toBe("Starting now \u00b7 10:00 \u2013 11:00 (1h)");
   });
 
   test("past items and items whose lead window has passed are skipped", () => {

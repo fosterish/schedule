@@ -19,6 +19,7 @@ const plannedReminders = computed<remind.PlannedReminder[]>(() => {
   const fixedById = new Map(effectiveItems.value.map((it) => [it.id, it.bounds.start != null]));
   const items: remind.ReminderItem[] = view.items.map((vi) => ({
     startMinute: vi.start,
+    endMinute: vi.end,
     fixedStart: fixedById.get(vi.id) ?? false,
     title: titleOf(vi.payload),
   }));

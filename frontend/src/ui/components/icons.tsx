@@ -176,16 +176,16 @@ export const GearIcon = (p: Props): JSX.Element =>
 export const SplitIcon = (p: Props): JSX.Element =>
   svg(
     <>
-      <path d="M3 10.5V3.5Q3 2 4.5 2H19.5Q21 2 21 3.5V10.5" />
-      <path d="M3 16.5V20.5Q3 22 4.5 22H19.5Q21 22 21 20.5V16.5" />
-      <path d="M1 13.5h6.5" />
-      <path d="M16.5 13.5h6.5" />
-      <path d="M12 10.1v0.9" />
-      <path d="M12 16v0.9" />
-      <path d="M9.84 12.25L9.06 11.8" />
-      <path d="M14.16 14.75L14.94 15.2" />
-      <path d="M14.16 12.25L14.94 11.8" />
-      <path d="M9.84 14.75L9.06 15.2" />
+      <path d="M3 9V3.5Q3 2 4.5 2H19.5Q21 2 21 3.5V9" />
+      <path d="M3 15V20.5Q3 22 4.5 22H19.5Q21 22 21 20.5V15" />
+      <path d="M1 12h6.5" />
+      <path d="M16.5 12h6.5" />
+      <path d="M12 8.6v0.9" />
+      <path d="M12 14.5v0.9" />
+      <path d="M9.84 10.75L9.06 10.3" />
+      <path d="M14.16 13.25L14.94 13.7" />
+      <path d="M14.16 10.75L14.94 10.3" />
+      <path d="M9.84 13.25L9.06 13.7" />
     </>,
     p,
   );

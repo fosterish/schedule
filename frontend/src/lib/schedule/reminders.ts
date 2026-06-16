@@ -2,9 +2,13 @@
 // for every future fixed-start item and for the single next dynamic-start item.
 // Fire times are absolute epoch ms; the server only relays them.
 
+import { fmtClock, fmtDurationHuman } from "@lib/timefmt";
+
 export interface ReminderItem {
   // Resolved start in the schedule frame (minutes from frame minute 0).
   startMinute: number;
+  // Resolved end in the schedule frame (minutes from frame minute 0).
+  endMinute: number;
   // The start edge is pinned (an absolute time), not flowed from neighbours.
   fixedStart: boolean;
   title: string;
@@ -56,10 +60,14 @@ function add(
   if (fireMinute <= nowMinute) return;
   out.push({
     fireAtMs: dayStartMs + fireMinute * MS_PER_MIN,
-    payload: { title: it.title, body: body(leadMin) },
+    payload: { title: it.title, body: body(it, leadMin) },
   });
 }
 
-function body(leadMin: number): string {
-  return leadMin > 0 ? `Starts in ${leadMin} min` : "Starting now";
+function body(it: ReminderItem, leadMin: number): string {
+  const lead = leadMin > 0 ? `Starts in ${leadMin} min` : "Starting now";
+  const span = `${fmtClock(it.startMinute)} \u2013 ${fmtClock(it.endMinute)} (${fmtDurationHuman(
+    it.endMinute - it.startMinute,
+  )})`;
+  return `${lead} \u00b7 ${span}`;
 }
