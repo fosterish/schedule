@@ -57,7 +57,6 @@ export function Block({
 }: Props): JSX.Element {
   const focus = uistate.focusOnSelect.value;
   const blockRef = useRef<HTMLDivElement | null>(null);
-  const [clipped, setClipped] = useState(false);
   const [contentH, setContentH] = useState(0);
 
   // Report the selected item's natural content height so the timeline can hold
@@ -86,26 +85,6 @@ export function Block({
     };
   }, [selected]);
 
-  // Collapsed: fade the whole item when its description overflows.
-  useLayoutEffect(() => {
-    if (selected) {
-      setClipped(false);
-      return;
-    }
-    const el = blockRef.current;
-    if (!el) return;
-    const measure = (): void => {
-      const desc = el.querySelector("[data-desc]") as HTMLElement | null;
-      setClipped(desc != null && desc.scrollHeight - desc.clientHeight > 1);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    const desc = el.querySelector("[data-desc]");
-    if (desc) ro.observe(desc);
-    return () => ro.disconnect();
-  }, [selected, height]);
-
   // Only let content overflow the block (e.g. the color popover) once it is tall
   // enough to contain it; while the morph grows the block, keep it clipped so the
   // editor controls don't spill past the short item.
@@ -113,9 +92,7 @@ export function Block({
   const cls = [s.block, selected ? s.selected : "", expanded ? s.expanded : "", dragging ? s.dragging : "", ...bandClasses(raw)]
     .filter(Boolean)
     .join(" ");
-  const headCls = [s.head, selected ? "" : s.headCollapsed, !selected && clipped ? s.faded : ""]
-    .filter(Boolean)
-    .join(" ");
+  const headCls = [s.head, selected ? "" : `${s.headCollapsed} ${s.faded}`].filter(Boolean).join(" ");
 
   return (
     <div
@@ -236,7 +213,7 @@ function CollapsedHead({
         </div>
       </div>
       {desc != null && desc.trim() !== "" && (
-        <div class={`${s.descStatic} ${s.descCollapsed}`} data-desc onClick={pickFocus(() => onSelect("description"))}>
+        <div class={`${s.descStatic} ${s.descCollapsed}`} onClick={pickFocus(() => onSelect("description"))}>
           {desc}
         </div>
       )}

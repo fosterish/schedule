@@ -71,11 +71,10 @@
   cursor: grabbing;
 }
 
-/* Collapsed with overflowing content: fade the head's text to transparent at
-   the bottom (not the block, so the border and gradient stay intact). */
+/* Collapsed: fade the head's text at the bottom, leaving the border intact. */
 .faded {
-  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 20px), transparent 100%);
 }
 
 /* Head: title + description, positioned identically whether collapsed or
