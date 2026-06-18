@@ -5,8 +5,8 @@
    overflows the boundary into them. */
 .bound {
   position: absolute;
-  left: calc(-1 * var(--gutter));
-  right: calc(-1 * var(--gutter));
+  left: calc(-1 * var(--gutter-left));
+  right: calc(-1 * var(--gutter-right));
   pointer-events: none;
 }
 

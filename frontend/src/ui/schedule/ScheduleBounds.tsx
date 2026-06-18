@@ -1,6 +1,7 @@
 import type { JSX } from "preact";
 
 import { fmtClock, parseClockToMin } from "@lib/timefmt";
+import * as settings from "@state/settings";
 import { DotsIcon } from "@ui/components/icons";
 import { StepperField } from "@ui/components/StepperField";
 
@@ -66,7 +67,7 @@ function BoundField({ label, minute, onSet }: { label: string; minute: number; o
     <div class={s.group}>
       <span class={s.label}>{label}</span>
       <StepperField
-        value={fmtClock(minute)}
+        value={fmtClock(minute, settings.hour12.value)}
         onCommit={(t) => {
           const v = parseClockToMin(t);
           if (v != null) onSet(v);

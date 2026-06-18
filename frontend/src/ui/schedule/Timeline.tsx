@@ -10,6 +10,7 @@ import type { ScheduleView, ScheduleViewItem } from "@lib/schedule/resolve";
 import type { RunAction, RunFlags } from "@lib/schedule/run";
 import { fmtClock } from "@lib/timefmt";
 import * as scheduleOps from "@state/mutations/schedule";
+import * as settings from "@state/settings";
 import * as uistate from "@state/uistate";
 import { randomItemColor } from "@ui/palette";
 import {
@@ -766,7 +767,7 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
         <div ref={timelineEl} class={s.timeline} style={`height:${height}px`}>
           {tickLines(span, disp.zoom).map((m) => (
             <div key={m} class={s.tickLine} style={`top:${dy(m)}px`}>
-              <span class={s.tickLabel}>{fmtClock(m)}</span>
+              <span class={s.tickLabel}>{fmtClock(m, settings.hour12.value)}</span>
             </div>
           ))}
           {view.schedule && (
@@ -850,7 +851,7 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
                 onClick={(e) => e.stopPropagation()}
               />
               <div class={s.cursorLine} />
-              <span class={s.cursorLabel}>{fmtClock(displayCursor)}</span>
+              <span class={s.cursorLabel}>{fmtClock(displayCursor, settings.hour12.value)}</span>
               {showClose && (
                 <button
                   type="button"

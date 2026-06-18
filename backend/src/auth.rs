@@ -117,7 +117,10 @@ where
 
 /// Builds a fresh cookie with a refreshed session; callers add it to the returned jar.
 pub fn refresh_cookie<'a>(user_id: UserId, username: &str) -> Cookie<'a> {
-    make_cookie(encode_session(&SessionPayload::new(user_id, username.to_string())))
+    make_cookie(encode_session(&SessionPayload::new(
+        user_id,
+        username.to_string(),
+    )))
 }
 
 pub async fn authenticate(

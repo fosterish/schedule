@@ -20,6 +20,17 @@ export const leadFixedMin = computed(() => row.value?.leadFixedMin ?? DEFAULT_LE
 export const leadDynamicMin = computed(() => row.value?.leadDynamicMin ?? DEFAULT_LEAD_DYNAMIC);
 export const defaultStart = computed(() => row.value?.defaultStart ?? layout.DEFAULT_START);
 export const defaultEnd = computed(() => row.value?.defaultEnd ?? layout.DEFAULT_END);
+export const use24Hour = computed(() => row.value?.use24Hour ?? false);
+// Clock formatters take `hour12`; 12-hour is the default (use24Hour off).
+export const hour12 = computed(() => !use24Hour.value);
+
+// Reflect the clock format as a root class so CSS can widen the time fields and
+// timeline gutter that longer 12-hour values need. Call once at boot.
+export function startClockFormat(): void {
+  effect(() => {
+    document.documentElement.classList.toggle("hour12", hour12.value);
+  });
+}
 
 // Upsert the singleton row, filling unset fields from the current row or the
 // defaults, then committing through the normal sync path.
@@ -33,6 +44,7 @@ function update(patch: Partial<Omit<Settings, "userId" | "rev">>): void {
     leadDynamicMin: current?.leadDynamicMin ?? DEFAULT_LEAD_DYNAMIC,
     defaultStart: current?.defaultStart ?? layout.DEFAULT_START,
     defaultEnd: current?.defaultEnd ?? layout.DEFAULT_END,
+    use24Hour: current?.use24Hour ?? false,
     ...patch,
     rev: localRev(),
   };
@@ -43,6 +55,7 @@ export const setLeadFixedMin = (n: number): void => update({ leadFixedMin: n });
 export const setLeadDynamicMin = (n: number): void => update({ leadDynamicMin: n });
 export const setDefaultStart = (n: number): void => update({ defaultStart: n });
 export const setDefaultEnd = (n: number): void => update({ defaultEnd: n });
+export const setUse24Hour = (b: boolean): void => update({ use24Hour: b });
 
 // --- device notifications: persisted intent gated by live browser permission ---
 

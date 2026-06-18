@@ -17,15 +17,18 @@
    time cursor span both gutters; items sit between them. */
 .timeline {
   position: relative;
-  --gutter: 60px;
-  margin: 0 var(--gutter);
+  /* Left grows for 12-hour labels; the right (media badges) stays fixed. */
+  --gutter-left: var(--timeline-gutter);
+  --gutter-right: 55px;
+  margin-left: var(--gutter-left);
+  margin-right: var(--gutter-right);
   min-height: 200px;
 }
 
 .tickLine {
   position: absolute;
-  left: calc(-1 * var(--gutter));
-  right: calc(-1 * var(--gutter));
+  left: calc(-1 * var(--gutter-left));
+  right: calc(-1 * var(--gutter-right));
   border-top: 1px dashed var(--border);
   pointer-events: none;
 }
@@ -35,7 +38,7 @@
   /* Nudged left so a "+1" day suffix on late times still clears the items. */
   left: -2px;
   top: -8px;
-  font-size: var(--font-small);
+  font-size: var(--font-tiny);
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   background: var(--bg);
@@ -48,8 +51,8 @@
    HH:MM pill and a reset/hide X. */
 .cursor {
   position: absolute;
-  left: calc(-1 * var(--gutter));
-  right: calc(-1 * var(--gutter));
+  left: calc(-1 * var(--gutter-left));
+  right: calc(-1 * var(--gutter-right));
   z-index: 20;
   pointer-events: none;
 }
@@ -83,16 +86,16 @@
 
 .cursorLabel {
   position: absolute;
-  left: 1px;
-  top: 0;
+  left: 0px;
+  top: 1px;
   transform: translateY(-50%);
-  font-size: var(--font-small);
+  font-size: var(--font-tiny);
   font-variant-numeric: tabular-nums;
   color: var(--cursor-color);
   background: var(--bg);
   border: 1px solid var(--cursor-color);
   border-radius: 999px;
-  padding: 1px 6px;
+  padding: 1px 5px 3px;
   line-height: 1;
   white-space: nowrap;
 }
@@ -100,7 +103,7 @@
 .cursorClose {
   position: absolute;
   right: 0;
-  top: -10px;
+  top: -9px;
   width: 20px;
   height: 20px;
   display: inline-flex;

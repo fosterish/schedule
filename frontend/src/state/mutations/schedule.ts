@@ -130,6 +130,73 @@ export function deleteItem(id: ScheduleItemId): void {
   commit([{ kind: "delete", ref: { kind: "scheduleItem", id } }], CTX);
 }
 
+const STEP = 15;
+
+// Spinner step: snap to the next 15-min grid line in the click direction, or a
+// full step when already aligned.
+function snap(value: number, dir: number): number {
+  if (value % STEP === 0) return value + dir * STEP;
+  return dir > 0 ? Math.ceil(value / STEP) * STEP : Math.floor(value / STEP) * STEP;
+}
+
+// The item's live resolved frame, read at call time so anchor/step actions that
+// fire right after a field commits act on the just-typed value, not stale props.
+function itemFrame(scheduleId: ScheduleId, id: ScheduleItemId): layout.LayoutFrame | null {
+  const span = scheduleSpan(scheduleId);
+  if (!span) return null;
+  const rows = sortedItems(scheduleId);
+  return layout.compute(rows.map(toLayoutItem), span).find((f) => f.id === id) ?? null;
+}
+
+// Pin an edge to its current resolved value, or unpin it if already fixed.
+export function toggleItemEdge(scheduleId: ScheduleId, id: ScheduleItemId, edge: resize.Edge): void {
+  const row = effectiveItems.value.find((it) => it.id === id);
+  if (!row) return;
+  const fixed = edge === "start" ? row.bounds.start != null : row.bounds.end != null;
+  if (fixed) {
+    patchItemBounds(id, edge === "start" ? { start: null } : { end: null });
+    return;
+  }
+  const frame = itemFrame(scheduleId, id);
+  if (!frame) return;
+  patchItemBounds(id, edge === "start" ? { start: frame.start } : { end: frame.end });
+}
+
+// Pin the duration to its current filled length (capped at the target), or unpin.
+export function toggleItemDuration(scheduleId: ScheduleId, id: ScheduleItemId): void {
+  const row = effectiveItems.value.find((it) => it.id === id);
+  if (!row) return;
+  if (row.bounds.fixedDuration != null) {
+    patchItemBounds(id, { fixedDuration: null });
+    return;
+  }
+  const frame = itemFrame(scheduleId, id);
+  if (!frame) return;
+  patchItemBounds(id, { fixedDuration: Math.min(frame.end - frame.start, row.bounds.durationTarget) });
+}
+
+// Spinner-step an edge from its current resolved value, snapping to the grid.
+export function stepItemEdge(scheduleId: ScheduleId, id: ScheduleItemId, edge: resize.Edge, dir: number): void {
+  const frame = itemFrame(scheduleId, id);
+  if (!frame) return;
+  const current = edge === "start" ? frame.start : frame.end;
+  slideItemEdge(scheduleId, id, edge, snap(current, dir));
+}
+
+// Spinner-step the duration from its current value: a fixed duration slides the
+// derived edge; an unfixed one nudges the target.
+export function stepItemDuration(scheduleId: ScheduleId, id: ScheduleItemId, dir: number): void {
+  const row = effectiveItems.value.find((it) => it.id === id);
+  if (!row) return;
+  const frame = itemFrame(scheduleId, id);
+  if (!frame) return;
+  const durationFixed = row.bounds.fixedDuration != null;
+  const current = durationFixed ? row.bounds.fixedDuration! : row.bounds.durationTarget;
+  const v = Math.max(STEP, snap(current, dir));
+  if (durationFixed) slideItemDuration(scheduleId, id, v);
+  else patchItemBounds(id, { durationTarget: v });
+}
+
 // Slide a fixed edge (drag handle or spinner) to `desired`, clamped against
 // neighbours' fixed edges and min durations; the schedule grows outward when the
 // edge presses past its boundary. A rigid item translates whole.

@@ -3,6 +3,7 @@ import type { JSX } from "preact";
 import type { ScheduleItem } from "@bindings/ScheduleItem";
 import { fmtClock, fmtDurationHuman, parseClockToMin, parseDurationToMin } from "@lib/timefmt";
 import * as scheduleOps from "@state/mutations/schedule";
+import * as settings from "@state/settings";
 
 import { ColorSwatch } from "@ui/components/ColorSwatch";
 import { RadioBar } from "@ui/components/RadioBar";
@@ -10,15 +11,6 @@ import { StepperField } from "@ui/components/StepperField";
 import { AnchorIcon } from "@ui/components/icons";
 
 import s from "./ItemEditor.module.css";
-
-const STEP = 15;
-
-// Spinner step: snap to the next 15-min grid line in the click direction, or a
-// full step when already aligned.
-function snap(value: number, dir: number): number {
-  if (value % STEP === 0) return value + dir * STEP;
-  return dir > 0 ? Math.ceil(value / STEP) * STEP : Math.floor(value / STEP) * STEP;
-}
 
 interface Props {
   raw: ScheduleItem;
@@ -63,7 +55,7 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
 
       <AnchorRow
         label="Start"
-        value={fmtClock(frameStart)}
+        value={fmtClock(frameStart, settings.hour12.value)}
         fixed={startFixed}
         onEdit={(t) => {
           const v = parseClockToMin(t);
@@ -71,8 +63,8 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
           if (startDerived) scheduleOps.setItemDuration(sid, raw.id, frameEnd - v);
           else scheduleOps.setItemEdgeValue(sid, raw.id, "start", v);
         }}
-        onToggle={() => scheduleOps.patchItemBounds(raw.id, { start: startFixed ? null : frameStart })}
-        onStep={(d) => scheduleOps.slideItemEdge(sid, raw.id, "start", snap(frameStart, d))}
+        onToggle={() => scheduleOps.toggleItemEdge(sid, raw.id, "start")}
+        onStep={(d) => scheduleOps.stepItemEdge(sid, raw.id, "start", d)}
       />
       <AnchorRow
         label={durationLabel}
@@ -87,23 +79,12 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
           if (durationFixed) scheduleOps.setItemDuration(sid, raw.id, v);
           else scheduleOps.patchItemBounds(raw.id, { durationTarget: v });
         }}
-        onToggle={() =>
-          scheduleOps.patchItemBounds(raw.id, {
-            // Pin to the desired duration, capped at what the item actually fills.
-            fixedDuration: durationFixed
-              ? null
-              : Math.min(frameEnd - frameStart, raw.bounds.durationTarget),
-          })
-        }
-        onStep={(d) => {
-          const v = Math.max(STEP, snap(durationMin, d));
-          if (durationFixed) scheduleOps.slideItemDuration(sid, raw.id, v);
-          else scheduleOps.patchItemBounds(raw.id, { durationTarget: v });
-        }}
+        onToggle={() => scheduleOps.toggleItemDuration(sid, raw.id)}
+        onStep={(d) => scheduleOps.stepItemDuration(sid, raw.id, d)}
       />
       <AnchorRow
         label="End"
-        value={fmtClock(frameEnd)}
+        value={fmtClock(frameEnd, settings.hour12.value)}
         fixed={endFixed}
         onEdit={(t) => {
           const v = parseClockToMin(t);
@@ -111,8 +92,8 @@ export function ItemEditor({ raw, frameStart, frameEnd }: Props): JSX.Element {
           if (endDerived) scheduleOps.setItemDuration(sid, raw.id, v - frameStart);
           else scheduleOps.setItemEdgeValue(sid, raw.id, "end", v);
         }}
-        onToggle={() => scheduleOps.patchItemBounds(raw.id, { end: endFixed ? null : frameEnd })}
-        onStep={(d) => scheduleOps.slideItemEdge(sid, raw.id, "end", snap(frameEnd, d))}
+        onToggle={() => scheduleOps.toggleItemEdge(sid, raw.id, "end")}
+        onStep={(d) => scheduleOps.stepItemEdge(sid, raw.id, "end", d)}
       />
 
       <div class={s.fullRow}>
@@ -157,24 +138,28 @@ function AnchorRow({
   return (
     <div class={s.row}>
       <span class={s.label}>{label}</span>
-      <StepperField
-        value={value}
-        onCommit={onEdit}
-        ariaLabel={label}
-        disabled={disabled}
-        onStep={stepper ? onStep : undefined}
-      />
-      {!hideToggle && (
-        <button
-          type="button"
-          class={btnClass}
-          aria-pressed={fixed}
-          title={fixed ? "Unpin" : "Pin"}
-          onClick={onToggle}
-        >
-          <AnchorIcon />
-        </button>
-      )}
+      <div>
+        <StepperField
+          value={value}
+          onCommit={onEdit}
+          ariaLabel={label}
+          disabled={disabled}
+          onStep={stepper ? onStep : undefined}
+        />
+        {!hideToggle ? (
+          <button
+            type="button"
+            class={btnClass}
+            aria-pressed={fixed}
+            title={fixed ? "Unpin" : "Pin"}
+            onClick={onToggle}
+          >
+            <AnchorIcon />
+          </button>
+        ) : (
+          <div class={s.togglePlaceholder} />
+        )}
+      </div>
     </div>
   );
 }

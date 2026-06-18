@@ -31,18 +31,19 @@ export function plan(
   nowMinute: number,
   dayStartMs: number,
   leads: ReminderLeads,
+  hour12: boolean,
 ): PlannedReminder[] {
   const out: PlannedReminder[] = [];
   const future = items.filter((it) => it.startMinute > nowMinute);
 
   for (const it of future) {
-    if (it.fixedStart) add(out, it, leads.fixedMin, nowMinute, dayStartMs);
+    if (it.fixedStart) add(out, it, leads.fixedMin, nowMinute, dayStartMs, hour12);
   }
 
   const nextDynamic = future
     .filter((it) => !it.fixedStart)
     .sort((a, b) => a.startMinute - b.startMinute)[0];
-  if (nextDynamic) add(out, nextDynamic, leads.dynamicMin, nowMinute, dayStartMs);
+  if (nextDynamic) add(out, nextDynamic, leads.dynamicMin, nowMinute, dayStartMs, hour12);
 
   return out.sort((a, b) => a.fireAtMs - b.fireAtMs);
 }
@@ -55,18 +56,19 @@ function add(
   leadMin: number,
   nowMinute: number,
   dayStartMs: number,
+  hour12: boolean,
 ): void {
   const fireMinute = it.startMinute - leadMin;
   if (fireMinute <= nowMinute) return;
   out.push({
     fireAtMs: dayStartMs + fireMinute * MS_PER_MIN,
-    payload: { title: it.title, body: body(it, leadMin) },
+    payload: { title: it.title, body: body(it, leadMin, hour12) },
   });
 }
 
-function body(it: ReminderItem, leadMin: number): string {
+function body(it: ReminderItem, leadMin: number, hour12: boolean): string {
   const lead = leadMin > 0 ? `Starts in ${leadMin} min` : "Starting now";
-  const span = `${fmtClock(it.startMinute)} \u2013 ${fmtClock(it.endMinute)} (${fmtDurationHuman(
+  const span = `${fmtClock(it.startMinute, hour12)} \u2013 ${fmtClock(it.endMinute, hour12)} (${fmtDurationHuman(
     it.endMinute - it.startMinute,
   )})`;
   return `${lead} \u00b7 ${span}`;

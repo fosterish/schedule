@@ -2,43 +2,53 @@
    pin) keeps every row's columns aligned even when the label shrinks on narrow
    items or a row omits its pin button. */
 .controls {
-  display: grid;
-  grid-template-columns: minmax(0, 116px) max-content max-content;
-  gap: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-top: auto;
   padding: 4px 8px 8px;
   cursor: default;
+  max-width: 400px;
 }
 
 /* Subgrid borrows the parent columns so the value column lines up across rows;
    the min-height keeps a row's height fixed whether or not it shows a pin. */
 .row {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: subgrid;
+  display: flex;
   align-items: center;
   min-height: var(--control-h);
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.row > :first-child {
+  display: block;
+  flex-shrink: 0;
+}
+
+.row > :nth-child(2) {
+  display: flex;
+  flex-grow: 1;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.togglePlaceholder {
+  width: var(--control-h);
 }
 
 .fullRow {
   grid-column: 1 / -1;
 }
 
-/* Capped at 116px by the grid column; shrinks (with an ellipsis) first on narrow
-   items so the value field and pin button never get clipped. */
 .label {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   color: var(--muted);
   font-size: var(--font-small);
 }
 
-/* Aligns the swatch's left edge with the time fields' text (field text inset). */
 .swatchCell {
-  padding-left: 7px;
-  justify-self: start;
+  padding-right: 6px;
 }
 
 .anchorBtn {
@@ -49,6 +59,7 @@
   font-size: 20px;
   color: var(--muted);
   border: 1px solid var(--border);
+  grid-column: 2 / 3;
 }
 
 .anchorBtn:not(.anchorOn):hover:not(:disabled) {

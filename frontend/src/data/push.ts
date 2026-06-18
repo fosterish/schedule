@@ -75,7 +75,13 @@ export async function unsubscribe(): Promise<void> {
 // Uploaded by every signed-in device, even those without push of their own.
 export async function uploadReminders(reminders: PlannedReminder[]): Promise<void> {
   try {
-    console.debug("[push] uploading reminders", { count: reminders.length });
+    console.debug("[push] uploading reminders", {
+      pushed_at: new Date().toLocaleString(),
+      reminders: reminders.map((r) => ({
+        title: r.payload.title,
+        at: new Date(r.fireAtMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      })),
+    });
     await api.putReminders(reminders.map((r) => ({ fireAtMs: r.fireAtMs, payload: r.payload })));
   } catch (e) {
     // Best-effort: a failed upload (offline/logout) is retried on the next change.

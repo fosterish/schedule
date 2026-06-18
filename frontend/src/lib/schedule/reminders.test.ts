@@ -16,7 +16,7 @@ function item(
 
 describe("reminders.plan", () => {
   test("fixed-start items fire lead minutes before start", () => {
-    const out = reminders.plan([item(600, true, "Standup")], 480, DAY, leads);
+    const out = reminders.plan([item(600, true, "Standup")], 480, DAY, leads, false);
     expect(out).toEqual([
       {
         fireAtMs: 590 * 60_000,
@@ -25,12 +25,18 @@ describe("reminders.plan", () => {
     ]);
   });
 
+  test("hour12 formats reminder bodies with AM/PM", () => {
+    const out = reminders.plan([item(600, true, "Standup")], 480, DAY, leads, true);
+    expect(out[0]!.payload.body).toBe("Starts in 10 min \u00b7 10:00 AM \u2013 11:00 AM (1h)");
+  });
+
   test("only the next dynamic-start item is scheduled", () => {
     const out = reminders.plan(
       [item(600, false, "a"), item(700, false, "b"), item(800, false, "c")],
       480,
       DAY,
       leads,
+      false,
     );
     expect(out).toHaveLength(1);
     expect(out[0]!.payload.title).toBe("a");
@@ -43,6 +49,7 @@ describe("reminders.plan", () => {
       480,
       DAY,
       leads,
+      false,
     );
     // 400 already started; 485 - 10 = 475 <= now; only 600 survives.
     expect(out).toHaveLength(1);
@@ -55,13 +62,14 @@ describe("reminders.plan", () => {
       480,
       DAY,
       leads,
+      false,
     );
     expect(out.map((r) => r.payload.title)).toEqual(["dyn", "fixed-late"]);
   });
 
   test("dayStartMs offsets every fire time", () => {
     const base = 1_000_000;
-    const out = reminders.plan([item(600, true)], 480, base, leads);
+    const out = reminders.plan([item(600, true)], 480, base, leads, false);
     expect(out[0]!.fireAtMs).toBe(base + 590 * 60_000);
   });
 });

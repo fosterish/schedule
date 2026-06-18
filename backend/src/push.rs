@@ -100,10 +100,22 @@ async fn fire_due(
         let mut sent = 0usize;
         let mut transient = false;
         for (endpoint, p256dh, auth) in subs {
-            match send(config, client, &endpoint, &p256dh, &auth, payload.as_bytes()).await {
+            match send(
+                config,
+                client,
+                &endpoint,
+                &p256dh,
+                &auth,
+                payload.as_bytes(),
+            )
+            .await
+            {
                 Ok(()) => sent += 1,
                 Err(SendOutcome::Gone) => {
-                    tracing::debug!(host = endpoint_host(&endpoint), "push: endpoint gone, dropping subscription");
+                    tracing::debug!(
+                        host = endpoint_host(&endpoint),
+                        "push: endpoint gone, dropping subscription"
+                    );
                     sqlx::query("DELETE FROM push_subscriptions WHERE endpoint = ?")
                         .bind(&endpoint)
                         .execute(pool)
@@ -111,7 +123,10 @@ async fn fire_due(
                 }
                 Err(SendOutcome::Transient(msg)) => {
                     transient = true;
-                    tracing::warn!(host = endpoint_host(&endpoint), "push: transient send failure: {msg}");
+                    tracing::warn!(
+                        host = endpoint_host(&endpoint),
+                        "push: transient send failure: {msg}"
+                    );
                 }
             }
         }

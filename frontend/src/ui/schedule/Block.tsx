@@ -6,6 +6,7 @@ import type { ScheduleItem } from "@bindings/ScheduleItem";
 import type { Task } from "@bindings/Task";
 import type { ScheduleViewItem } from "@lib/schedule/resolve";
 import { fmtClock, fmtDurationHuman } from "@lib/timefmt";
+import * as settings from "@state/settings";
 import * as scheduleOps from "@state/mutations/schedule";
 import * as uistate from "@state/uistate";
 import { projectIndex } from "@state/views";
@@ -112,7 +113,7 @@ export function Block({
       )}
 
       <div class={s.timeTag}>
-        {`${fmtClock(tagStart)} \u2013 ${fmtClock(tagEnd)} (${fmtDurationHuman(tagEnd - tagStart)})`}
+        {`${fmtClock(tagStart, settings.hour12.value)} \u2013 ${fmtClock(tagEnd, settings.hour12.value)} (${fmtDurationHuman(tagEnd - tagStart)})`}
       </div>
 
       {!selected && !dragging && onResizeStart && raw?.bounds.start != null && (

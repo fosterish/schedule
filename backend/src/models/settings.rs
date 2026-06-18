@@ -13,6 +13,7 @@ struct SettingsRow {
     lead_dynamic_min: i64,
     default_start: i64,
     default_end: i64,
+    use_24_hour: bool,
     updated_rev: i64,
     deleted_rev: Option<i64>,
 }
@@ -25,6 +26,7 @@ impl SettingsRow {
             lead_dynamic_min: self.lead_dynamic_min,
             default_start: self.default_start,
             default_end: self.default_end,
+            use_24_hour: self.use_24_hour,
             rev: Revisions {
                 updated: self.updated_rev,
                 deleted: self.deleted_rev,
@@ -64,11 +66,12 @@ pub async fn upsert_settings(
 ) -> AppResult<()> {
     sqlx::query(
         "INSERT INTO user_settings \
-           (user_id, lead_fixed_min, lead_dynamic_min, default_start, default_end, updated_rev, deleted_rev) \
-         VALUES (?, ?, ?, ?, ?, ?, NULL) \
+           (user_id, lead_fixed_min, lead_dynamic_min, default_start, default_end, use_24_hour, updated_rev, deleted_rev) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL) \
          ON CONFLICT(user_id) DO UPDATE SET \
            lead_fixed_min = excluded.lead_fixed_min, lead_dynamic_min = excluded.lead_dynamic_min, \
            default_start = excluded.default_start, default_end = excluded.default_end, \
+           use_24_hour = excluded.use_24_hour, \
            updated_rev = excluded.updated_rev, deleted_rev = NULL",
     )
     .bind(user.to_string())
@@ -76,6 +79,7 @@ pub async fn upsert_settings(
     .bind(s.lead_dynamic_min)
     .bind(s.default_start)
     .bind(s.default_end)
+    .bind(s.use_24_hour)
     .bind(rev)
     .execute(&mut *conn)
     .await?;

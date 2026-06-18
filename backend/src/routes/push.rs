@@ -25,7 +25,10 @@ async fn vapid_public_key(
     State(state): State<AppState>,
     _user: AuthUser,
 ) -> AppResult<Json<VapidKey>> {
-    tracing::debug!(configured = state.push.is_some(), "GET /push/vapid-public-key");
+    tracing::debug!(
+        configured = state.push.is_some(),
+        "GET /push/vapid-public-key"
+    );
     let config = state.push.as_ref().ok_or(AppError::NotFound)?;
     Ok(Json(VapidKey {
         key: config.public_key.clone(),

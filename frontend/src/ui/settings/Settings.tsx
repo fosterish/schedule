@@ -20,6 +20,7 @@ function snap(value: number, dir: number, step: number): number {
 export function Settings(): JSX.Element {
   const enabled = settings.notificationsEnabled.value;
   const supported = settings.pushSupported();
+  const use24Hour = settings.use24Hour.value;
 
   async function toggleNotifications(): Promise<void> {
     if (!(await settings.toggleNotifications())) {
@@ -101,18 +102,34 @@ export function Settings(): JSX.Element {
         </section>
 
         <section class={s.section}>
+          <h2 class={s.sectionTitle}>Display</h2>
+          <label class={s.row}>
+            <span class={s.rowLabel}>Use 24-hour clock</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={use24Hour}
+              class={use24Hour ? `${s.switch} ${s.on}` : s.switch}
+              onClick={() => settings.setUse24Hour(!use24Hour)}
+            >
+              <span class={s.knob} />
+            </button>
+          </label>
+        </section>
+
+        <section class={s.section}>
           <h2 class={s.sectionTitle}>New schedule defaults</h2>
           <p class={s.hint}>The time range new days and templates start with.</p>
           <SteppedField
             label="Start"
-            value={fmtClock(settings.defaultStart.value)}
+            value={fmtClock(settings.defaultStart.value, settings.hour12.value)}
             ariaLabel="Default schedule start"
             onCommit={commitStart}
             onStep={stepStart}
           />
           <SteppedField
             label="End"
-            value={fmtClock(settings.defaultEnd.value)}
+            value={fmtClock(settings.defaultEnd.value, settings.hour12.value)}
             ariaLabel="Default schedule end"
             onCommit={commitEnd}
             onStep={stepEnd}

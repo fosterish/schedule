@@ -17,6 +17,12 @@
   --control-h: 36px;
   --font: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 
+  /* Clock-time sizing. Widened under `.hour12` to fit "12:00 AM"-style values
+     in the time fields and the timeline's left label gutter (left only; the
+     right gutter holds media badges and stays fixed). */
+  --clock-field-w: 90px;
+  --timeline-gutter: 54px;
+
   /* Type scale: titles/headers, normal text, smaller UI, rare fine print. */
   --font-large: 20px;
   --font-medium: 16px;
@@ -28,6 +34,12 @@
   --item-border-mix: 45%;
 
   --row-bg-mix: 12%;
+}
+
+:root.hour12 {
+  --clock-field-w: 115px;
+  /* Left label gutter only; the right gutter is fixed in Timeline.module.css. */
+  --timeline-gutter: 74px;
 }
 
 @media (prefers-color-scheme: light) {

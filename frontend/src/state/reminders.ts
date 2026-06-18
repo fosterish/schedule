@@ -23,10 +23,13 @@ const plannedReminders = computed<remind.PlannedReminder[]>(() => {
     fixedStart: fixedById.get(vi.id) ?? false,
     title: titleOf(vi.payload),
   }));
-  return remind.plan(items, view.nowMinute, dayStartMs, {
-    fixedMin: settings.leadFixedMin.value,
-    dynamicMin: settings.leadDynamicMin.value,
-  });
+  return remind.plan(
+    items,
+    view.nowMinute,
+    dayStartMs,
+    { fixedMin: settings.leadFixedMin.value, dynamicMin: settings.leadDynamicMin.value },
+    settings.hour12.value,
+  );
 });
 
 let lastUpload = "";

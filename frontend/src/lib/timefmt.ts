@@ -1,19 +1,26 @@
 // Clock (HH:MM, +/-N days) and duration (HH:MM) formatting and parsing. Both
-// parsers accept bare minutes, :minutes, and unit-suffixed forms. Hours past 23
-// roll into the next day (e.g. "25h" -> 01:00+1). Clock values span the two-day
-// frame, up to 00:00+2 (48h).
+// parse :minutes; a bare number is hours for clocks ("10" -> 10:00) but minutes
+// for durations. Clocks also accept 12-hour suffixes ("5pm" -> 17:00); only
+// durations accept unit suffixes ("1h30m"). Clock hours past 23 roll into the
+// next day ("24:00" -> 00:00+1); values span the two-day frame, up to 00:00+2
+// (48h).
 
 const DAY = 1440;
 const CLOCK_MIN = -DAY;
 const CLOCK_MAX = 2 * DAY;
+const UNIT_RE = /^(\d+)(hours?|hrs?|h|minutes?|mins?|m)/;
 
-export function fmtClock(minute: number | null): string {
+export function fmtClock(minute: number | null, hour12 = false): string {
   if (minute == null) return "\u2014";
   const day = Math.floor(minute / DAY);
   const wrapped = minute - day * DAY;
   const suffix = day > 0 ? `+${day}` : day < 0 ? String(day) : "";
   const h = Math.floor(wrapped / 60);
   const m = wrapped % 60;
+  if (hour12) {
+    const period = h < 12 ? "AM" : "PM";
+    return `${h % 12 || 12}:${pad(m)} ${period}${suffix}`;
+  }
   return `${pad(h)}:${pad(m)}${suffix}`;
 }
 
@@ -35,15 +42,27 @@ export function fmtDurationHuman(minute: number | null): string {
 }
 
 export function parseClockToMin(s: string): number | null {
-  const t = s.trim();
+  const t = s.trim().toLowerCase().replace(/[\s,]/g, "");
   if (!t) return null;
+  // 12-hour forms: "5pm", "10:30pm" (hour 1-12, no day suffix).
+  const ap = /^(\d{1,2})(?::([0-5]\d))?(am|pm)$/.exec(t);
+  if (ap) {
+    let h = Number(ap[1]);
+    if (h < 1 || h > 12) return null;
+    if (h === 12) h = ap[3] === "am" ? 0 : 12;
+    else if (ap[3] === "pm") h += 12;
+    return h * 60 + Number(ap[2] ?? 0);
+  }
   let total: number | null = null;
   const hm = /^(\d{1,2}):([0-5]\d)([+-]\d+)?$/.exec(t);
   if (hm) {
     total = Number(hm[1]) * 60 + Number(hm[2]) + daySuffix(hm[3]);
   } else {
     const suffix = /([+-]\d+)$/.exec(t);
-    const flex = parseUnitOrColon(suffix ? t.slice(0, -suffix[0].length) : t);
+    const body = suffix ? t.slice(0, -suffix[0].length) : t;
+    let flex: number | null = null;
+    if (/^:\d+$/.test(body)) flex = Number(body.slice(1)); // colon minutes
+    else if (/^\d+$/.test(body)) flex = Number(body) * 60; // bare number is hours
     if (flex != null) total = flex + daySuffix(suffix?.[1]);
   }
   // Spans the two-day frame plus a day of underflow; the absolute max is 00:00+2.
@@ -53,10 +72,23 @@ export function parseClockToMin(s: string): number | null {
 export function parseDurationToMin(s: string): number | null {
   const t = s.trim();
   if (!t) return null;
-  const m = /^(\d{1,2}):([0-5]\d)$/.exec(t);
-  if (m) return Number(m[1]) * 60 + Number(m[2]);
-  const flex = parseUnitOrColon(t);
-  return flex != null && flex > 0 ? flex : null;
+  const hm = /^(\d{1,2}):([0-5]\d)$/.exec(t);
+  if (hm) return Number(hm[1]) * 60 + Number(hm[2]);
+  const cleaned = t.toLowerCase().replace(/[\s,]/g, "");
+  let total = 0;
+  if (/^:\d+$/.test(cleaned)) total = Number(cleaned.slice(1)); // colon minutes
+  else if (/^\d+$/.test(cleaned)) total = Number(cleaned); // bare number is minutes
+  else {
+    // Sum unit-suffixed tokens like "1h30m", "45m", "2hrs".
+    let rest = cleaned;
+    while (rest.length > 0) {
+      const m = UNIT_RE.exec(rest);
+      if (!m) return null;
+      total += m[2]!.startsWith("h") ? Number(m[1]) * 60 : Number(m[1]);
+      rest = rest.slice(m[0]!.length);
+    }
+  }
+  return total > 0 ? total : null;
 }
 
 function daySuffix(s: string | undefined): number {
@@ -65,28 +97,4 @@ function daySuffix(s: string | undefined): number {
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
-}
-
-const UNIT_RE = /^(\d+)(hours?|hrs?|h|minutes?|mins?|m)/;
-
-// Shape-only parse of bare minutes (`90`), colon minutes (`:135`), and
-// unit-suffixed (`1h30m`) forms to total minutes; range checks live in the
-// public parsers.
-function parseUnitOrColon(t: string): number | null {
-  const cleaned = t.toLowerCase().replace(/[\s,]/g, "");
-  if (!cleaned) return null;
-  const colon = /^:(\d+)$/.exec(cleaned);
-  if (colon) return Number(colon[1]);
-  const bare = /^(\d+)$/.exec(cleaned);
-  if (bare) return Number(bare[1]);
-  if (!/[a-z]/.test(cleaned)) return null;
-  let rest = cleaned;
-  let total = 0;
-  while (rest.length > 0) {
-    const m = UNIT_RE.exec(rest);
-    if (!m) return null;
-    total += m[2]!.startsWith("h") ? Number(m[1]) * 60 : Number(m[1]);
-    rest = rest.slice(m[0]!.length);
-  }
-  return total;
 }

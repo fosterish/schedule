@@ -10,7 +10,7 @@ import { setUnauthorizedHandler } from "@data/api";
 import { startClock } from "@state/clock";
 import { startReminders } from "@state/reminders";
 import * as session from "@state/session";
-import { startNotifications } from "@state/settings";
+import { startClockFormat, startNotifications } from "@state/settings";
 import { App } from "@ui/app";
 
 // A 401 mid-session drops the user; the auth gate then routes to /login.
@@ -22,9 +22,27 @@ async function boot(): Promise<void> {
   startClock();
   startReminders();
   startNotifications();
+  startClockFormat();
   await session.loadSession();
   if (session.user.value) await session.beginSession();
 }
+
+// Pressing a button doesn't reliably move focus (Safari/Firefox leave it on the
+// field), so a focused in-place field's commit-on-blur wouldn't run before the
+// button's click. Blur it explicitly on pointerdown so the typed value commits
+// first. Capture phase + pointerdown both precede the field's blur and click.
+document.addEventListener(
+  "pointerdown",
+  (e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target?.closest("button")) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active !== target && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+      active.blur();
+    }
+  },
+  true,
+);
 
 const root = document.getElementById("app");
 if (root) {

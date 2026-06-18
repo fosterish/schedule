@@ -10,7 +10,7 @@
    shifts when the spinner shows/hides. Higher specificity than AutoField's
    `.field` so these win regardless of stylesheet order. */
 .wrap .value {
-  width: 90px;
+  width: var(--clock-field-w);
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
