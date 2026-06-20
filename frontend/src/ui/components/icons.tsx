@@ -52,6 +52,16 @@ export const CloseIcon = (p: Props): JSX.Element =>
     p,
   );
 
+// An arrow leaving up-and-right: "go to" / open the linked project or task.
+export const GoToIcon = (p: Props): JSX.Element =>
+  svg(
+    <>
+      <path d="M7 17L17 7" />
+      <path d="M8 7h9v9" />
+    </>,
+    p,
+  );
+
 export const ChevronLeftIcon = (p: Props): JSX.Element => svg(<path d="M15 6l-6 6 6 6" />, p);
 export const ChevronRightIcon = (p: Props): JSX.Element => svg(<path d="M9 6l6 6-6 6" />, p);
 export const ChevronDownIcon = (p: Props): JSX.Element => svg(<path d="M6 9l6 6 6-6" />, p);

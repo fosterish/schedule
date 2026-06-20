@@ -62,9 +62,11 @@
   grid-column: 2 / 3;
 }
 
-.anchorBtn:not(.anchorOn):hover:not(:disabled) {
-  background: color-mix(in srgb, var(--block-color, var(--accent)) 15%, transparent);
-  border-color: var(--block-color, var(--accent));
+@media (hover: hover) {
+  .anchorBtn:not(.anchorOn):hover:not(:disabled) {
+    background: color-mix(in srgb, var(--block-color, var(--accent)) 15%, transparent);
+    border-color: var(--block-color, var(--accent));
+  }
 }
 
 /* Doubled selector beats the composed `.btn`'s transparent background. */

@@ -25,7 +25,13 @@ export function ProjectDetail({ id }: { id?: string }): JSX.Element | null {
   const [focusTitle] = useState(() => uistate.focusProjectId.value === id);
   useEffect(() => {
     uistate.lastProjectsRoute.value = path;
-    uistate.selectTask(null);
+    const pending = uistate.focusTaskId.peek();
+    if (pending != null) {
+      uistate.selectTask(pending);
+      uistate.focusTaskId.value = null;
+    } else {
+      uistate.selectTask(null);
+    }
   }, [path]);
   useEffect(() => {
     if (uistate.focusProjectId.value === id) uistate.focusProjectId.value = null;

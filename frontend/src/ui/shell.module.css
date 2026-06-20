@@ -62,8 +62,10 @@
   border: none;
 }
 
-.tab:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .tab:hover {
+    color: var(--fg);
+  }
 }
 
 .active {
@@ -88,8 +90,10 @@
   border: none;
 }
 
-.logout:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .logout:hover {
+    color: var(--fg);
+  }
 }
 
 .body {

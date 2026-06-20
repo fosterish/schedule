@@ -17,8 +17,10 @@
   transition: transform 0.12s ease;
 }
 
-.row:hover {
-  background: color-mix(in srgb, var(--project-color) 18%, transparent);
+@media (hover: hover) {
+  .row:hover {
+    background: color-mix(in srgb, var(--project-color) 18%, transparent);
+  }
 }
 
 .selected {
@@ -58,8 +60,7 @@
 }
 
 .done {
-  color: var(--muted);
-  text-decoration: line-through;
+  composes: done from "../styles/text.module.css";
 }
 
 .blocked {

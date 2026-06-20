@@ -1,5 +1,6 @@
 import type { JSX } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLocation } from "preact-iso";
 
 import type { Project } from "@bindings/Project";
 import type { ScheduleItem } from "@bindings/ScheduleItem";
@@ -15,7 +16,7 @@ import { AutoField } from "@ui/components/AutoField";
 import { Combobox } from "@ui/components/Combobox";
 import { Select } from "@ui/components/Select";
 import { Stepper } from "@ui/components/Stepper";
-import { DotsIcon } from "@ui/components/icons";
+import { DotsIcon, GoToIcon } from "@ui/components/icons";
 import { TrashButton } from "@ui/components/TrashButton";
 
 import { ItemEditor } from "./ItemEditor";
@@ -236,6 +237,7 @@ function ProjectHead({
   raw: ScheduleItem;
   onDelete: () => void;
 }): JSX.Element {
+  const { route } = useLocation();
   const projects = projectIndex.value.rankedProjects();
   const projectByRank = raw.projectId == null;
 
@@ -248,6 +250,24 @@ function ProjectHead({
   const tasks = projectId != null ? projectIndex.value.projectTasks(projectId) : [];
   const selectedTask = tasks.find((t) => t.id === raw.taskId) ?? null;
   const taskByRank = projectByRank || raw.taskId == null;
+
+  // Names resolved from the payload so the rank-mode parentheticals show what the
+  // current rank actually points at; the swatch always uses the item's color.
+  const resolvedProjectName =
+    item.payload.kind === "task" || item.payload.kind === "noTask" ? item.payload.projectName : null;
+  const resolvedTaskName = item.payload.kind === "task" ? item.payload.taskName : null;
+  const swatch = paletteColor(item.color);
+
+  // Both buttons only render once their target resolves, so the ids are set here.
+  const goToProject = (e: JSX.TargetedMouseEvent<HTMLButtonElement>): void => {
+    e.stopPropagation();
+    route(`/projects/${projectId}`);
+  };
+  const goToTask = (e: JSX.TargetedMouseEvent<HTMLButtonElement>): void => {
+    e.stopPropagation();
+    uistate.focusTaskId.value = resolvedTaskId;
+    route(`/projects/${projectId}`);
+  };
 
   const setProjectMode = (mode: SelMode): void => {
     const projectId = mode === "name" ? (raw.projectId ?? resolvedProjectId ?? projects[0]?.id ?? null) : null;
@@ -271,26 +291,42 @@ function ProjectHead({
           ariaLabel="Project selection mode"
           class={`${s.modeSelect} ${s.areaPmode}`}
         />
-        {projectByRank ? (
-          <RankField
-            value={raw.projectRank}
-            max={projects.length}
-            ariaLabel="Project rank"
-            class={s.areaPval!}
-            onChange={(n) => scheduleOps.patchItem(raw.id, { projectRank: n })}
-          />
-        ) : (
-          <Combobox<Project>
-            items={projects}
-            value={selectedProject}
-            getKey={(p) => p.id}
-            getLabel={(p) => p.name || "Untitled project"}
-            getColor={(p) => paletteColor(p.color)}
-            placeholder="Project"
-            class={s.areaPval!}
-            onSelect={(p) => scheduleOps.patchItem(raw.id, { projectId: p ? p.id : null, taskId: null })}
-          />
-        )}
+        <div class={`${s.valueCell} ${s.areaPval}`}>
+          {projectByRank ? (
+            <RankField
+              value={raw.projectRank}
+              max={projects.length}
+              ariaLabel="Project rank"
+              class={s.rankCell!}
+              onChange={(n) => scheduleOps.patchItem(raw.id, { projectRank: n })}
+            />
+          ) : (
+            <Combobox<Project>
+              items={projects}
+              value={selectedProject}
+              getKey={(p) => p.id}
+              getLabel={(p) => p.name || "Untitled project"}
+              getColor={(p) => paletteColor(p.color)}
+              placeholder="Project"
+              class={s.comboFill!}
+              onSelect={(p) => scheduleOps.patchItem(raw.id, { projectId: p ? p.id : null, taskId: null })}
+            />
+          )}
+          {projectByRank && resolvedProjectName != null && (
+            <Resolved color={swatch} name={resolvedProjectName} />
+          )}
+          {projectId != null && (
+            <button
+              type="button"
+              class={s.goBtn}
+              title="Go to project"
+              aria-label="Go to project"
+              onClick={goToProject}
+            >
+              <GoToIcon />
+            </button>
+          )}
+        </div>
         <TrashButton onClick={onDelete} label="Delete item" class={`${s.headTrash} ${s.areaTrash}`} />
 
         <Select<SelMode>
@@ -304,27 +340,52 @@ function ProjectHead({
           ariaLabel="Task selection mode"
           class={`${s.modeSelect} ${s.areaTmode}`}
         />
-        {taskByRank ? (
-          <RankField
-            value={raw.taskRank}
-            max={tasks.length}
-            ariaLabel="Task rank"
-            class={s.areaTval!}
-            onChange={(n) => scheduleOps.patchItem(raw.id, { taskRank: n })}
-          />
-        ) : (
-          <Combobox<Task>
-            items={tasks}
-            value={selectedTask}
-            getKey={(t) => t.id}
-            getLabel={(t) => t.name || "Untitled task"}
-            placeholder="Task"
-            class={s.areaTval!}
-            onSelect={(t) => scheduleOps.patchItem(raw.id, { taskId: t ? t.id : null })}
-          />
-        )}
+        <div class={`${s.valueCell} ${s.areaTval}`}>
+          {taskByRank ? (
+            <RankField
+              value={raw.taskRank}
+              max={tasks.length}
+              ariaLabel="Task rank"
+              class={s.rankCell!}
+              onChange={(n) => scheduleOps.patchItem(raw.id, { taskRank: n })}
+            />
+          ) : (
+            <Combobox<Task>
+              items={tasks}
+              value={selectedTask}
+              getKey={(t) => t.id}
+              getLabel={(t) => t.name || "Untitled task"}
+              placeholder="Task"
+              class={s.comboFill!}
+              onSelect={(t) => scheduleOps.patchItem(raw.id, { taskId: t ? t.id : null })}
+            />
+          )}
+          {taskByRank && resolvedTaskName != null && <Resolved name={resolvedTaskName} />}
+          {resolvedTaskId != null && (
+            <button
+              type="button"
+              class={s.goBtn}
+              title="Go to task"
+              aria-label="Go to task"
+              onClick={goToTask}
+            >
+              <GoToIcon />
+            </button>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+// The "(swatch name)" hint shown after a rank picker, naming the row the current
+// rank resolves to.
+function Resolved({ color, name }: { color?: string; name: string }): JSX.Element {
+  return (
+    <span class={s.resolved}>
+      ({color != null && <span class={s.resolvedSwatch} style={{ background: color }} />}
+      <span class={s.resolvedName}>{name || "Untitled"}</span>)
+    </span>
   );
 }
 

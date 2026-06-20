@@ -101,6 +101,19 @@ export function item(projects: ProjectIndex, it: ScheduleItem): ItemPayload {
   return inProject(projects, pid, it.taskRank, rank);
 }
 
+// Pin the project/task an item resolves to now, immune to later rank shifts.
+// Null for inline, already task-fixed, or unresolved items.
+export function pin(projects: ProjectIndex, it: ScheduleItem): Partial<ScheduleItem> | null {
+  if (it.useInline || it.taskId != null) return null;
+  const projectId = it.projectId ?? projects.pickByRank(it.projectRank);
+  if (projectId == null) return null;
+  const task = projects.pickTaskByRank(projectId, it.taskRank);
+  const patch: Partial<ScheduleItem> = {};
+  if (it.projectId == null) patch.projectId = projectId;
+  if (task) patch.taskId = task.id;
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
 // Mode.Date(date): no live clock.
 export function date(
   projects: ProjectIndex,

@@ -27,23 +27,6 @@ async function boot(): Promise<void> {
   if (session.user.value) await session.beginSession();
 }
 
-// Pressing a button doesn't reliably move focus (Safari/Firefox leave it on the
-// field), so a focused in-place field's commit-on-blur wouldn't run before the
-// button's click. Blur it explicitly on pointerdown so the typed value commits
-// first. Capture phase + pointerdown both precede the field's blur and click.
-document.addEventListener(
-  "pointerdown",
-  (e) => {
-    const target = e.target as HTMLElement | null;
-    if (!target?.closest("button")) return;
-    const active = document.activeElement;
-    if (active instanceof HTMLElement && active !== target && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
-      active.blur();
-    }
-  },
-  true,
-);
-
 const root = document.getElementById("app");
 if (root) {
   render(<App />, root);

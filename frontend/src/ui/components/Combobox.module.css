@@ -35,7 +35,6 @@
 }
 
 .value {
-  color: var(--fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -93,9 +92,11 @@
   cursor: pointer;
 }
 
-.searchClear:hover {
-  color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 12%, transparent);
+@media (hover: hover) {
+  .searchClear:hover {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 12%, transparent);
+  }
 }
 
 .option {
@@ -113,9 +114,14 @@
   cursor: pointer;
 }
 
-.option:hover,
 .option[aria-selected="true"] {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+@media (hover: hover) {
+  .option:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
 }
 
 .empty {

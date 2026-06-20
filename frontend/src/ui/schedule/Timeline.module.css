@@ -119,9 +119,11 @@
   pointer-events: auto;
 }
 
-.cursorClose:hover {
-  color: var(--bg);
-  background: var(--cursor-color);
+@media (hover: hover) {
+  .cursorClose:hover {
+    color: var(--bg);
+    background: var(--cursor-color);
+  }
 }
 
 /* Media badges centered in the right gutter at the target item's midpoint. */
@@ -150,9 +152,11 @@
   box-shadow: 0 0 6px 1px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.mediaBadge:hover {
-  color: #f2f2f5;
-  background: var(--accent);
+@media (hover: hover) {
+  .mediaBadge:hover {
+    color: #f2f2f5;
+    background: var(--accent);
+  }
 }
 
 /* Round, backgroundless zoom buttons floating just left of the add button,
@@ -183,8 +187,10 @@
   cursor: pointer;
 }
 
-.zoomBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--fg) 10%, transparent);
+@media (hover: hover) {
+  .zoomBtn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 10%, transparent);
+  }
 }
 
 .zoomBtn:disabled {

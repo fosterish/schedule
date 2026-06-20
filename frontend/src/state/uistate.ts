@@ -19,6 +19,10 @@ export const focusOnSelect = signal<FocusField>(null);
 // A just-created project whose title should grab focus once. Cleared on consume.
 export const focusProjectId = signal<ProjectId | null>(null);
 
+// A task to select once its project detail mounts (e.g. "Go to task" from the
+// schedule). Cleared on consume so it doesn't override later navigation.
+export const focusTaskId = signal<TaskId | null>(null);
+
 // Explicit time-cursor minute: the schedule's play head. null = live (snaps to
 // `now` in today mode) / hidden (date & template modes). Run actions (play/skip/
 // stop) and their enablement evaluate here, so dragging the cursor steers them.
@@ -85,6 +89,7 @@ export function reset(): void {
     selectedTask.value = null;
     focusOnSelect.value = null;
     focusProjectId.value = null;
+    focusTaskId.value = null;
     cursorMinute.value = null;
     selectedContentHeight.value = 0;
     fitScheduleId.value = null;

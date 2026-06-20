@@ -140,6 +140,43 @@ describe("item payload chain", () => {
   });
 });
 
+describe("pin", () => {
+  test("inline item: no change", () => {
+    expect(resolve.pin(index(), sitem({ id: "i", useInline: true }))).toBeNull();
+  });
+
+  test("already task-fixed: no change", () => {
+    expect(resolve.pin(index(), sitem({ id: "i", taskId: "t1" }))).toBeNull();
+  });
+
+  test("ranked project + task: pins both ids", () => {
+    expect(resolve.pin(index(), sitem({ id: "i", projectRank: 1, taskRank: 1 }))).toEqual({
+      projectId: "p",
+      taskId: "t1",
+    });
+  });
+
+  test("fixed project, ranked task: pins only the task id", () => {
+    expect(resolve.pin(index(), sitem({ id: "i", projectId: "p", taskRank: 1 }))).toEqual({
+      taskId: "t1",
+    });
+  });
+
+  test("fixed project, no eligible task: nothing to pin", () => {
+    expect(resolve.pin(index(), sitem({ id: "i", projectId: "p", taskRank: 2 }))).toBeNull();
+  });
+
+  test("ranked project with no eligible task: pins only the project id", () => {
+    expect(resolve.pin(index(), sitem({ id: "i", projectRank: 1, taskRank: 2 }))).toEqual({
+      projectId: "p",
+    });
+  });
+
+  test("rank past the last project: nothing to pin", () => {
+    expect(resolve.pin(index(), sitem({ id: "i", projectRank: 5 }))).toBeNull();
+  });
+});
+
 describe("views", () => {
   const items = [
     sitem({

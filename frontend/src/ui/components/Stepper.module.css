@@ -13,6 +13,8 @@
   border: none;
 }
 
-.btn:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .btn:hover {
+    color: var(--fg);
+  }
 }

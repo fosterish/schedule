@@ -14,8 +14,10 @@
   cursor: pointer;
 }
 
-.btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 88%, var(--fg));
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 88%, var(--fg));
+  }
 }
 
 .btn:disabled {

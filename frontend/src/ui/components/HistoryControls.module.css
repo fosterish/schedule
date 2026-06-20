@@ -17,8 +17,10 @@
   background: var(--bg);
 }
 
-.btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
 }
 
 .btn:disabled {

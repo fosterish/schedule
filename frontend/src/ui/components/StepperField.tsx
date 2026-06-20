@@ -1,4 +1,5 @@
 import type { JSX } from "preact";
+import { useRef } from "preact/hooks";
 
 import { AutoField } from "./AutoField";
 import { Stepper } from "./Stepper";
@@ -26,8 +27,14 @@ export function StepperField({
   bordered = false,
 }: Props): JSX.Element {
   const cls = [s.value, onStep ? s.stepped : "", bordered ? s.bordered : ""].filter(Boolean).join(" ");
+  const wrap = useRef<HTMLDivElement | null>(null);
+  // A spinner press may not blur the field (Safari/Firefox); commit it first.
+  const flush = (): void => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && wrap.current?.contains(active)) active.blur();
+  };
   return (
-    <div class={s.wrap}>
+    <div class={s.wrap} ref={wrap}>
       <AutoField
         value={value}
         onCommit={onCommit}
@@ -38,7 +45,7 @@ export function StepperField({
         class={cls}
       />
       {onStep && (
-        <span class={s.slot}>
+        <span class={s.slot} onPointerDown={flush}>
           <Stepper onStep={onStep} label={ariaLabel} />
         </span>
       )}

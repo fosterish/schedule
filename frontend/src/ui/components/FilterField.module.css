@@ -36,7 +36,9 @@
   cursor: pointer;
 }
 
-.clear:hover {
-  color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 12%, transparent);
+@media (hover: hover) {
+  .clear:hover {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 12%, transparent);
+  }
 }

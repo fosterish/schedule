@@ -35,6 +35,10 @@
   flex: 0 0 auto;
 }
 
+.done {
+  composes: done from "../styles/text.module.css";
+}
+
 .add {
   display: inline-flex;
   align-items: center;
@@ -50,6 +54,8 @@
   cursor: pointer;
 }
 
-.add:hover {
-  background: color-mix(in srgb, var(--project-color) 14%, transparent);
+@media (hover: hover) {
+  .add:hover {
+    background: color-mix(in srgb, var(--project-color) 14%, transparent);
+  }
 }

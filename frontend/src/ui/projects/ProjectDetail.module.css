@@ -116,8 +116,10 @@
   background: var(--bg);
 }
 
-.back:hover {
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
+@media (hover: hover) {
+  .back:hover {
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+  }
 }
 
 .filter {
@@ -139,8 +141,10 @@
   border: 1px solid var(--border);
 }
 
-.clearCompleted:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
+@media (hover: hover) {
+  .clearCompleted:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+  }
 }
 
 /* Doubled selector out-specifies the composed `.btn` (transparent background)

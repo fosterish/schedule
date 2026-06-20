@@ -84,8 +84,10 @@
   cursor: pointer;
 }
 
-.row:hover {
-  background: color-mix(in srgb, var(--project-color) 22%, transparent);
+@media (hover: hover) {
+  .row:hover {
+    background: color-mix(in srgb, var(--project-color) 22%, transparent);
+  }
 }
 
 .divider {

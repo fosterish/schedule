@@ -60,7 +60,12 @@
   cursor: pointer;
 }
 
-.option:hover,
 .option[aria-selected="true"] {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+@media (hover: hover) {
+  .option:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
 }

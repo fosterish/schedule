@@ -60,8 +60,10 @@
   background: var(--bg);
 }
 
-.splitBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+@media (hover: hover) {
+  .splitBtn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
 }
 
 .splitBtn:disabled {
@@ -119,8 +121,10 @@
   border: 1px solid var(--border);
 }
 
-.todayBtn:hover {
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+@media (hover: hover) {
+  .todayBtn:hover {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
 }
 
 .navBtn {
@@ -138,8 +142,10 @@
   background: var(--bg);
 }
 
-.navBtn:hover:not(:disabled) {
-  color: var(--fg);
+@media (hover: hover) {
+  .navBtn:hover:not(:disabled) {
+    color: var(--fg);
+  }
 }
 
 .titleRow {

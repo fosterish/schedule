@@ -1,4 +1,5 @@
 import type { JSX } from "preact";
+import { useRef } from "preact/hooks";
 
 import type { ScheduleItem } from "@bindings/ScheduleItem";
 import { fmtClock, fmtDurationHuman, parseClockToMin, parseDurationToMin } from "@lib/timefmt";
@@ -135,8 +136,14 @@ function AnchorRow({
 }: AnchorRowProps): JSX.Element {
   const stepper = showStepper ?? fixed;
   const btnClass = fixed ? `${s.anchorBtn} ${s.anchorOn}` : s.anchorBtn!;
+  const row = useRef<HTMLDivElement | null>(null);
+  // An anchor press may not blur the field (Safari/Firefox); commit it first.
+  const flush = (): void => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && row.current?.contains(active)) active.blur();
+  };
   return (
-    <div class={s.row}>
+    <div class={s.row} ref={row}>
       <span class={s.label}>{label}</span>
       <div>
         <StepperField
@@ -152,6 +159,7 @@ function AnchorRow({
             class={btnClass}
             aria-pressed={fixed}
             title={fixed ? "Unpin" : "Pin"}
+            onPointerDown={flush}
             onClick={onToggle}
           >
             <AnchorIcon />

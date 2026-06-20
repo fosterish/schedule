@@ -47,8 +47,10 @@
   opacity: 0.55;
 }
 
-.handle > *:hover {
-  opacity: 1;
+@media (hover: hover) {
+  .handle > *:hover {
+    opacity: 1;
+  }
 }
 
 /* Offset matches the item edge handles' dots (7px off the edge), so a bound and

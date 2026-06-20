@@ -1,0 +1,6 @@
+/* Completed-item treatment: muted + struck through. Shared by the task list and
+   the dependency editor so finished tasks read the same everywhere. */
+.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}

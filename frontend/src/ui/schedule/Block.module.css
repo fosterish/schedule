@@ -206,7 +206,6 @@
 
 .areaPval {
   grid-area: pval;
-  min-width: 0;
 }
 
 .areaTmode {
@@ -215,7 +214,6 @@
 
 .areaTval {
   grid-area: tval;
-  min-width: 0;
 }
 
 .areaTrash {
@@ -227,13 +225,76 @@
   min-width: 0;
 }
 
+/* The value control plus its rank-mode "(name)" hint and the go-to button. */
+.valueCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Wide: only as wide as its content (shrinking with ellipsis when space is
+   tight). Narrow, where the picker gets its own row, it fills the width. */
+.comboFill {
+  min-width: 0;
+}
+
+@container (max-width: 380px) {
+  .comboFill {
+    flex: 1 1 auto;
+  }
+}
+
+.rankCell {
+  flex: none;
+}
+
+.goBtn {
+  composes: btn from "../styles/button.module.css";
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  font-size: 17px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+@media (hover: hover) {
+  .goBtn:hover {
+    color: var(--fg);
+  }
+}
+
+.resolved {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--font-small);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.resolvedSwatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 4px;
+  border-radius: 50%;
+}
+
+.resolvedName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Stepper sits inside the rank field's box, like the time-anchor spinners. */
 .rankField {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-self: start;
-  width: 96px;
+  width: 56px;
 }
 
 .rankInput {
@@ -298,8 +359,10 @@
   z-index: 6;
 }
 
-.handle:hover {
-  opacity: 0.85;
+@media (hover: hover) {
+  .handle:hover {
+    opacity: 0.85;
+  }
 }
 
 .handleTop {

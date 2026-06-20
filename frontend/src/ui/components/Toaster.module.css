@@ -54,6 +54,8 @@
   opacity: 0.7;
 }
 
-.dismiss:hover {
-  opacity: 1;
+@media (hover: hover) {
+  .dismiss:hover {
+    opacity: 1;
+  }
 }

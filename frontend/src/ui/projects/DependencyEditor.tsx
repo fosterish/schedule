@@ -112,6 +112,7 @@ export function DependencyEditor({ task, tasks, deps }: Props): JSX.Element {
           {dirSelect(r.dir, (d) => setDir(r, d))}
           <Combobox<Task>
             class={s.taskField!}
+            valueClass={r.other.completedAt != null ? s.done : undefined}
             items={candidates(r.other.id)}
             value={r.other}
             getKey={(t) => t.id}

@@ -4,8 +4,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use sqlx::SqlitePool;
 use tokio::sync::broadcast;
 use web_push::{
-    ContentEncoding, HyperWebPushClient, SubscriptionInfo, VapidSignatureBuilder, WebPushClient,
-    WebPushError, WebPushMessageBuilder,
+    ContentEncoding, HyperWebPushClient, SubscriptionInfo, Urgency, VapidSignatureBuilder,
+    WebPushClient, WebPushError, WebPushMessageBuilder,
 };
 
 const SCAN_INTERVAL: Duration = Duration::from_secs(10);
@@ -176,6 +176,7 @@ async fn send(
     let mut builder = WebPushMessageBuilder::new(&info);
     builder.set_payload(ContentEncoding::Aes128Gcm, content);
     builder.set_ttl(REMINDER_TTL_SECS);
+    builder.set_urgency(Urgency::High);
     builder.set_vapid_signature(signature);
     let message = builder
         .build()

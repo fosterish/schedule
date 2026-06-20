@@ -8,7 +8,9 @@
   border: none;
 }
 
-.trash:hover:not(:disabled) {
-  color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
+@media (hover: hover) {
+  .trash:hover:not(:disabled) {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
 }

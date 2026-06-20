@@ -42,6 +42,10 @@ button {
   font: inherit;
 }
 
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
 #app {
   display: block;
   height: 100%;

@@ -21,9 +21,11 @@
   border: 1px solid var(--border);
 }
 
-.navBtn:hover,
-.iconBtn:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .navBtn:hover,
+  .iconBtn:hover {
+    color: var(--fg);
+  }
 }
 
 .todayBtn {
@@ -76,8 +78,10 @@
   background: var(--bg-elevated);
 }
 
-.templateRow:hover {
-  border-color: color-mix(in srgb, var(--fg) 24%, var(--border));
+@media (hover: hover) {
+  .templateRow:hover {
+    border-color: color-mix(in srgb, var(--fg) 24%, var(--border));
+  }
 }
 
 .templateName {
@@ -95,8 +99,10 @@
   cursor: pointer;
 }
 
-.templateName:hover {
-  color: var(--accent);
+@media (hover: hover) {
+  .templateName:hover {
+    color: var(--accent);
+  }
 }
 
 .templateTrash {
@@ -155,8 +161,10 @@
   cursor: pointer;
 }
 
-.cell:hover {
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
+@media (hover: hover) {
+  .cell:hover {
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+  }
 }
 
 /* Days bound to a schedule get a subtle accent wash. */
@@ -164,8 +172,10 @@
   background: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 
-.scheduled:hover {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+@media (hover: hover) {
+  .scheduled:hover {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
 }
 
 .out {

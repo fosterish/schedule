@@ -1,5 +1,5 @@
 import type { JSX } from "preact";
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 import type { Project } from "@bindings/Project";
 import type { Task } from "@bindings/Task";
@@ -65,6 +65,13 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
   const rowRefs = useRef(new Map<TaskId, HTMLDivElement>());
   const [drag, setDrag] = useState<DragState | null>(null);
   const selectedId = uistate.selectedTask.value;
+
+  // Reveal the selected task (e.g. arriving via "Go to task"); "nearest" leaves
+  // an already-visible row in place so plain clicks don't jump the list.
+  useEffect(() => {
+    if (selectedId == null) return;
+    rowRefs.current.get(selectedId)?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
 
   function gripDown(id: TaskId) {
     return (e: JSX.TargetedPointerEvent<HTMLButtonElement>): void => {

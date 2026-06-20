@@ -15,6 +15,7 @@ interface Props<T> {
   onSelect: (item: T | null) => void;
   placeholder?: string;
   class?: string;
+  valueClass?: string | undefined;
 }
 
 // Anchored fuzzy-filter dropdown (a menu, not a modal) for the project/task
@@ -28,6 +29,7 @@ export function Combobox<T>({
   onSelect,
   placeholder = "Select\u2026",
   class: cls,
+  valueClass,
 }: Props<T>): JSX.Element {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -70,7 +72,9 @@ export function Combobox<T>({
           {value != null && getColor && (
             <span class={s.swatch} style={{ background: getColor(value) }} />
           )}
-          <span class={value != null ? s.value : s.placeholder}>{label}</span>
+          <span class={value != null ? [s.value, valueClass].filter(Boolean).join(" ") : s.placeholder}>
+            {label}
+          </span>
         </span>
         <ChevronDownIcon />
       </button>

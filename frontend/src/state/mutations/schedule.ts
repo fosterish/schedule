@@ -103,7 +103,12 @@ export function splitItem(scheduleId: ScheduleId, minute: number): ScheduleItemI
     position: positionAfter(rows, plan.value.id, null),
     rev: localRev(),
   };
-  commit([upsertItem({ ...current, bounds: plan.value.bounds }), upsertItem(clone)], CTX);
+  // Pin the old item's identity; the clone keeps the original reference.
+  const pinned = resolve.pin(projectIndex.value, current);
+  commit(
+    [upsertItem({ ...current, ...pinned, bounds: plan.value.bounds }), upsertItem(clone)],
+    CTX,
+  );
   return id;
 }
 
@@ -132,15 +137,13 @@ export function deleteItem(id: ScheduleItemId): void {
 
 const STEP = 15;
 
-// Spinner step: snap to the next 15-min grid line in the click direction, or a
-// full step when already aligned.
+// Snap to the next 15-min grid line in `dir`, or a full step when aligned.
 function snap(value: number, dir: number): number {
   if (value % STEP === 0) return value + dir * STEP;
   return dir > 0 ? Math.ceil(value / STEP) * STEP : Math.floor(value / STEP) * STEP;
 }
 
-// The item's live resolved frame, read at call time so anchor/step actions that
-// fire right after a field commits act on the just-typed value, not stale props.
+// Live resolved frame, read at call time so steps/toggles use the just-typed value.
 function itemFrame(scheduleId: ScheduleId, id: ScheduleItemId): layout.LayoutFrame | null {
   const span = scheduleSpan(scheduleId);
   if (!span) return null;
@@ -183,8 +186,7 @@ export function stepItemEdge(scheduleId: ScheduleId, id: ScheduleItemId, edge: r
   slideItemEdge(scheduleId, id, edge, snap(current, dir));
 }
 
-// Spinner-step the duration from its current value: a fixed duration slides the
-// derived edge; an unfixed one nudges the target.
+// Spinner-step the duration: a fixed one slides the derived edge, else nudge the target.
 export function stepItemDuration(scheduleId: ScheduleId, id: ScheduleItemId, dir: number): void {
   const row = effectiveItems.value.find((it) => it.id === id);
   if (!row) return;
@@ -335,13 +337,18 @@ export function runAction(scheduleId: ScheduleId, action: run.RunAction, nowMinu
   if (!span) return false;
   const rows = sortedItems(scheduleId);
   const layoutItems = rows.map(toLayoutItem);
-  const plan = run.apply(action, layoutItems, layout.compute(layoutItems, span), nowMinute, span);
+  const frames = layout.compute(layoutItems, span);
+  const plan = run.apply(action, layoutItems, frames, nowMinute, span);
   if (!plan.ok) return false;
   const byId = new Map(rows.map((r) => [r.id, r]));
   const ops: Operation[] = [];
+  // Pin the played item (Play's target / Skip's next) against later rank shifts.
+  const played = action === "stop" ? null : run.flags(layoutItems, frames, nowMinute, span)[action].target;
   for (const p of plan.value.patches) {
     const row = byId.get(p.id);
-    if (row) ops.push(upsertItem({ ...row, bounds: p.bounds }));
+    if (!row) continue;
+    const pinned = p.id === played ? resolve.pin(projectIndex.value, row) : null;
+    ops.push(upsertItem({ ...row, ...pinned, bounds: p.bounds }));
   }
   for (const id of plan.value.deletes) {
     ops.push({ kind: "delete", ref: { kind: "scheduleItem", id } });
