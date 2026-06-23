@@ -73,15 +73,6 @@ export const PlayIcon = (p: Props): JSX.Element =>
 export const StopIcon = (p: Props): JSX.Element =>
   svg(<rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor" stroke="none" />, p);
 
-export const SkipIcon = (p: Props): JSX.Element =>
-  svg(
-    <>
-      <path d="M6 5l9 7-9 7z" fill="currentColor" stroke="none" />
-      <path d="M17 5v14" stroke-width="2.5" />
-    </>,
-    p,
-  );
-
 export const GripIcon = (p: Props): JSX.Element =>
   svg(
     <>

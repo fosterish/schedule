@@ -180,6 +180,12 @@ export function minEndToFit(items: LayoutItem[], span: Span): number {
   return Math.max(need, cursor);
 }
 
+// Items lay out validly and fit within the span. `validate` alone misses an
+// unbounded trailing run overflowing the open end, so check minEndToFit too.
+export function feasible(items: LayoutItem[], span: Span): boolean {
+  return minEndToFit(items, span) <= span.end && validate(items, compute(items, span), span).ok;
+}
+
 export interface Resolved {
   start: number | null;
   end: number | null;

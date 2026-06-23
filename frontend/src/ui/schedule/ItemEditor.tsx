@@ -142,6 +142,16 @@ function AnchorRow({
     const active = document.activeElement;
     if (active instanceof HTMLElement && row.current?.contains(active)) active.blur();
   };
+  // Toggle on the press, not the trailing click: committing the field can reflow
+  // the item out from under the pointer, dropping a click released over a gap.
+  const press = (): void => {
+    flush();
+    onToggle();
+  };
+  // Keyboard activation (Enter/Space) has no pointerdown and reports detail 0.
+  const keyToggle = (e: MouseEvent): void => {
+    if (e.detail === 0) onToggle();
+  };
   return (
     <div class={s.row} ref={row}>
       <span class={s.label}>{label}</span>
@@ -159,8 +169,8 @@ function AnchorRow({
             class={btnClass}
             aria-pressed={fixed}
             title={fixed ? "Unpin" : "Pin"}
-            onPointerDown={flush}
-            onClick={onToggle}
+            onPointerDown={press}
+            onClick={keyToggle}
           >
             <AnchorIcon />
           </button>

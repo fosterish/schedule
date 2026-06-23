@@ -23,6 +23,8 @@ const fixed = (start: number, end: number): ItemBounds => ({
   fixedDuration: null,
   durationTarget: end - start,
 });
+const fixedStart = (start: number): ItemBounds => ({ start, end: null, fixedDuration: null, durationTarget: 60 });
+const rigid = (fixedDuration: number): ItemBounds => ({ start: null, end: null, fixedDuration, durationTarget: fixedDuration });
 const item = (s: string, bounds: ItemBounds): LayoutItem => ({ id: id(s), bounds });
 
 function planFor(action: RunAction, items: LayoutItem[], now: number) {
@@ -35,19 +37,55 @@ function planFor(action: RunAction, items: LayoutItem[], now: number) {
 const threeDynamic = () => [item("a", dyn()), item("b", dyn()), item("c", dyn())];
 
 describe("run.flags", () => {
-  it("offers only Play before the schedule start", () => {
+  it("offers only Play before the schedule start, targeting the first item", () => {
     const f = flags(threeDynamic(), compute(threeDynamic(), SPAN), 400, SPAN);
     expect(f.play).toEqual({ enabled: true, target: id("a") });
     expect(f.stop.enabled).toBe(false);
-    expect(f.skip.enabled).toBe(false);
   });
 
-  it("targets the dynamic block's first item within it, skip the next", () => {
+  it("targets the dynamic block's open first item for both Play and Stop", () => {
     const items = threeDynamic();
     const f = flags(items, compute(items, SPAN), 500, SPAN);
     expect(f.play.target).toBe(id("a"));
     expect(f.stop.target).toBe(id("a"));
-    expect(f.skip).toEqual({ enabled: true, target: id("b") });
+  });
+
+  it("Play targets the second item when the block's first has a fixed start", () => {
+    const items = [item("a", fixedStart(480)), item("b", dyn()), item("c", dyn())];
+    const f = flags(items, compute(items, SPAN), 500, SPAN);
+    expect(f.play.target).toBe(id("b"));
+    // Stop still targets the block's first (anchored) item.
+    expect(f.stop.target).toBe(id("a"));
+  });
+
+  it("Play targets the item after the current static item", () => {
+    const items = [item("a", fixed(480, 600)), item("b", dyn())];
+    const f = flags(items, compute(items, SPAN), 540, SPAN);
+    expect(f.play.target).toBe(id("b"));
+    expect(f.stop.target).toBe(id("a"));
+  });
+
+  it("disables Play when an anchored block/static item has no following item", () => {
+    const items = [item("a", fixed(480, 540)), item("b", fixedStart(700))];
+    // now is inside b, whose block is just itself (fixed start, nothing after).
+    const f = flags(items, compute(items, SPAN), 800, SPAN);
+    expect(f.play.enabled).toBe(false);
+    expect(f.stop.target).toBe(id("b"));
+  });
+
+  it("disables Play when its stop-then-play would breach the stop target's minimum duration", () => {
+    const items = [item("a", fixed(480, 600)), item("b", dyn())];
+    // now == a.start: stopping a to start b would collapse a below its minimum.
+    expect(flags(items, compute(items, SPAN), 480, SPAN).play.enabled).toBe(false);
+    // A minute in, a has room to run; Play targets b again.
+    const g = flags(items, compute(items, SPAN), 481, SPAN);
+    expect(g.play).toEqual({ enabled: true, target: id("b") });
+  });
+
+  it("disables both actions when the schedule has no items", () => {
+    const f = flags([], compute([], SPAN), 500, SPAN);
+    expect(f.play.enabled).toBe(false);
+    expect(f.stop.enabled).toBe(false);
   });
 
   it("disables Stop when it would zero-duration delete the target", () => {
@@ -67,21 +105,20 @@ describe("run.flags", () => {
     expect(g.stop).toEqual({ enabled: true, target: id("a") });
   });
 
-  it("disables Skip when the next item has a fixed start", () => {
-    const items = [item("a", dyn()), item("b", fixed(600, 660))];
-    // a is its own dynamic block; the next item b is fixed-start.
-    const f = flags(items, compute(items, SPAN), 500, SPAN);
-    expect(f.play.target).toBe(id("a"));
-    expect(f.skip.enabled).toBe(false);
+  it("disables Play when a fixed-duration item would overrun the next fixed start", () => {
+    // a is rigid 60 min, b is pinned to 540: a only fits before b when it starts <= 480.
+    const items = [item("a", rigid(60)), item("b", fixedStart(540))];
+    // Playing at 500 pins a to [500, 560], overlapping b at 540 -> disabled.
+    expect(flags(items, compute(items, SPAN), 500, SPAN).play.enabled).toBe(false);
+    // At the schedule start there is exactly room: a lays out [480, 540].
+    expect(flags(items, compute(items, SPAN), 480, SPAN).play.enabled).toBe(true);
   });
 
-  it("targets a static item itself for play and stop", () => {
-    const items = [item("a", fixed(480, 600)), item("b", dyn())];
-    const f = flags(items, compute(items, SPAN), 540, SPAN);
-    expect(f.play.target).toBe(id("a"));
-    expect(f.stop.target).toBe(id("a"));
-    // The next item b is dynamic-start, so Skip targets it.
-    expect(f.skip).toEqual({ enabled: true, target: id("b") });
+  it("disables Play when dynamic items can't fit their minimums before the next fixed start", () => {
+    // Three 1-min-minimum items must precede b's fixed start at 483.
+    const items = [item("a", dyn()), item("b", dyn()), item("c", dyn()), item("d", fixedStart(483))];
+    // Playing at 481 leaves only 2 minutes for three items -> overlap -> disabled.
+    expect(flags(items, compute(items, SPAN), 481, SPAN).play.enabled).toBe(false);
   });
 });
 
@@ -99,11 +136,20 @@ describe("run.apply", () => {
     expect(planFor("stop", threeDynamic(), 500).patches[0]?.bounds.end).toBe(500);
   });
 
-  it("Skip stops the current block and starts the next", () => {
-    const p = planFor("skip", threeDynamic(), 500);
+  it("Play stops an anchored block's first item and starts the next", () => {
+    const items = [item("a", fixedStart(480)), item("b", dyn()), item("c", dyn())];
+    const p = planFor("play", items, 500);
     const byId = new Map(p.patches.map((x) => [x.id, x.bounds]));
     expect(byId.get(id("a"))?.end).toBe(500);
     expect(byId.get(id("b"))?.start).toBe(500);
+  });
+
+  it("Play stops the current static item and starts the one after", () => {
+    const items = [item("a", fixed(480, 600)), item("b", dyn())];
+    const p = planFor("play", items, 540);
+    const byId = new Map(p.patches.map((x) => [x.id, x.bounds]));
+    expect(byId.get(id("a"))?.end).toBe(540);
+    expect(byId.get(id("b"))?.start).toBe(540);
   });
 
   it("Stop only Play before start is allowed", () => {
@@ -124,5 +170,17 @@ describe("run.apply", () => {
     expect(p.patches).toEqual([
       { id: id("a"), bounds: { start: 480, end: 600, fixedDuration: null, durationTarget: 60 } },
     ]);
+  });
+
+  it("grows the span outward to fit an item played past the schedule end", () => {
+    const p = planFor("play", threeDynamic(), 1400);
+    expect(p.patches[0]?.bounds.start).toBe(1400);
+    // Three items need at least 1400 + 3 minutes; the span end grows to admit them.
+    expect(p.span.end).toBeGreaterThanOrEqual(1403);
+  });
+
+  it("rejects a Play that would overlap a later fixed start", () => {
+    const items = [item("a", rigid(60)), item("b", fixedStart(540))];
+    expect(apply("play", items, compute(items, SPAN), 500, SPAN).ok).toBe(false);
   });
 });

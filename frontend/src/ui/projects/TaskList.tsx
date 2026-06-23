@@ -36,9 +36,12 @@ function previewOffsets(d: DragState): Map<TaskId, number> {
   const insertAt = d.target.afterId == null ? 0 : rest.indexOf(d.target.afterId) + 1;
   const preview = [...rest];
   preview.splice(insertAt, 0, d.id);
+  // Shift by the center-to-center pitch (row height + list gap), not the bare
+  // row height, so the preview matches where the committed reorder lands.
+  const pitch = d.mids.length >= 2 ? d.mids[1]! - d.mids[0]! : d.height;
   for (const id of d.order) {
     if (id === d.id) continue;
-    out.set(id, (preview.indexOf(id) - d.order.indexOf(id)) * d.height);
+    out.set(id, (preview.indexOf(id) - d.order.indexOf(id)) * pitch);
   }
   return out;
 }
@@ -115,10 +118,41 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
   function gripUp(): void {
     if (!drag) return;
     const d = drag;
+    // On-screen tops of every row the preview moved (the floating grabbed row
+    // plus the rows shifted to open its gap), captured while their transforms
+    // still apply.
+    const before = new Map<TaskId, number>();
+    if (d.moved) {
+      for (const id of previewOffsets(d).keys()) {
+        const top = rowRefs.current.get(id)?.getBoundingClientRect().top;
+        if (top != null) before.set(id, top);
+      }
+    }
     setDrag(null);
     if (d.moved && d.target && d.conflicts.size === 0) {
       projectOps.reorderTask(project.id, d.id, d.target.afterId);
     }
+    if (before.size === 0) return;
+    // FLIP: the preview already sat every row at its final spot, so clearing
+    // their transforms must not re-animate them. Pin each row back to its drop
+    // position (transition off) then release; only true deltas animate, i.e.
+    // the grabbed row sliding from the pointer into its slot.
+    requestAnimationFrame(() => {
+      const settled: HTMLElement[] = [];
+      for (const [id, top] of before) {
+        const el = rowRefs.current.get(id);
+        if (!el) continue;
+        el.style.transition = "none";
+        el.style.transform = `translateY(${top - el.getBoundingClientRect().top}px)`;
+        settled.push(el);
+      }
+      requestAnimationFrame(() => {
+        for (const el of settled) {
+          el.style.transition = "";
+          el.style.transform = "";
+        }
+      });
+    });
   }
 
   const offsets = drag ? previewOffsets(drag) : null;
@@ -173,7 +207,8 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
             </span>
           )}
           {!selected && blockedBy > 0 && <span class={s.blocked}>blocked by {blockedBy}</span>}
-          {draggable && !selected && (
+          {selected && <TrashButton onClick={() => projectOps.deleteTask(t.id)} label="Delete task" />}
+          {draggable && (
             <button
               type="button"
               class={s.grip}
@@ -186,7 +221,6 @@ export function TaskList({ project, filter = "" }: { project: Project; filter?: 
               <GripIcon />
             </button>
           )}
-          {selected && <TrashButton onClick={() => projectOps.deleteTask(t.id)} label="Delete task" />}
         </div>
         {selected && (
           <div class={s.detail}>

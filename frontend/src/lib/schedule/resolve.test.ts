@@ -177,6 +177,48 @@ describe("pin", () => {
   });
 });
 
+describe("splitTaskRef", () => {
+  // p has t1 (rank 1) and a completed task; t1 is the only eligible task.
+  const many = () =>
+    new project.ProjectIndex(
+      [proj({ id: "p", value: 4, time: 1 })],
+      [
+        task({ id: "t1", projectId: "p", listOrder: "a0" }),
+        task({ id: "t2", projectId: "p", listOrder: "a1" }),
+        task({ id: "t3", projectId: "p", listOrder: "a2" }),
+      ],
+      [],
+    );
+
+  test("by-name task hands off to the first rank", () => {
+    expect(resolve.splitTaskRef(many(), sitem({ id: "i", projectId: "p", taskId: "t1" }))).toEqual({
+      taskId: null,
+      taskRank: 1,
+    });
+  });
+
+  test("by-rank task advances to the next rank", () => {
+    expect(resolve.splitTaskRef(many(), sitem({ id: "i", projectId: "p", taskRank: 1 }))).toEqual({
+      taskId: null,
+      taskRank: 2,
+    });
+  });
+
+  test("by-rank task at the last rank stays put", () => {
+    expect(resolve.splitTaskRef(many(), sitem({ id: "i", projectId: "p", taskRank: 3 }))).toEqual({
+      taskId: null,
+      taskRank: 3,
+    });
+  });
+
+  test("ranked project resolves before advancing the task rank", () => {
+    expect(resolve.splitTaskRef(many(), sitem({ id: "i", projectRank: 1, taskRank: 1 }))).toEqual({
+      taskId: null,
+      taskRank: 2,
+    });
+  });
+});
+
 describe("views", () => {
   const items = [
     sitem({

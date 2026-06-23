@@ -2,14 +2,16 @@ import type { ItemBounds } from "@bindings/ItemBounds";
 import type { ScheduleItemId } from "@bindings/ScheduleItemId";
 import { type Result, ok, err } from "@lib/result";
 
+import { FRAME_END, FRAME_START, MAX_SCHEDULE_START, MIN_DURATION, feasible, minEndToFit } from "./layout";
 import type { LayoutFrame, LayoutItem, Span } from "./layout";
 
-// Play/skip/stop, branching on the schedule's hard `span`: an action pins an
-// item's start (Play), its end (Stop), or both edges of the current/next pair
-// (Skip), and any item driven to zero duration is deleted. Pure: returns the
-// bounds patches and deletes; the caller builds ops.
+// Play/stop for the live schedule. Play advances to the item that should run at
+// `now` — the current dynamic block's open first item, the next item when that
+// first is anchored, or the item after a static/anchored one — pinning its start
+// and stopping whatever it interrupts. Stop pins the current item's end to now.
+// Pure: returns the bounds patches and deletes; the caller builds ops.
 
-export type RunAction = "play" | "stop" | "skip";
+export type RunAction = "play" | "stop";
 
 export interface RunTarget {
   enabled: boolean;
@@ -19,15 +21,24 @@ export interface RunTarget {
 export interface RunFlags {
   play: RunTarget;
   stop: RunTarget;
-  skip: RunTarget;
 }
 
 export interface RunPlan {
   patches: { id: ScheduleItemId; bounds: ItemBounds }[];
   deletes: ScheduleItemId[];
+  // Hard span grown outward to admit the pinned edges.
+  span: Span;
 }
 
 export type RunError = { kind: "disabled"; reason: string };
+
+// The two edges an action pins to `now`: `stop` (an end) and `start` (a start);
+// `target` is the item the action is "about" (for toolbar buttons and badges).
+interface Intent {
+  target: number;
+  stop: number | null;
+  start: number | null;
+}
 
 interface Work {
   id: ScheduleItemId;
@@ -41,14 +52,25 @@ interface Work {
 // Enablement + the item each action would modify, for toolbar buttons and the
 // media badges pinned at the target's midpoint.
 export function flags(items: LayoutItem[], frames: LayoutFrame[], nowMinute: number, span: Span): RunFlags {
-  const f = compute(items, frames, nowMinute, span);
-  // Stop sets the target's end to now; at the target's beginning that would zero
-  // its duration, so disable instead.
-  if (f.stop.enabled && f.stop.target != null) {
-    const fr = frames.find((x) => x.id === f.stop.target);
-    if (fr && fr.start === nowMinute) {
-      f.stop = { enabled: false, target: null };
-    }
+  const f: RunFlags = { play: off(), stop: off() };
+  if (items.length === 0) return f;
+  const assigned = items.map((it) => frameOf(frames, it.id));
+
+  const pi = playIntent(items, assigned, nowMinute);
+  if (pi) f.play = { enabled: true, target: items[pi.target]!.id };
+
+  const si = stopIntent(items, assigned, nowMinute);
+  if (si) {
+    // Stop pins the target's end to now; at its start that zeroes the duration,
+    // so disable instead.
+    const fr = frames.find((x) => x.id === items[si.target]!.id);
+    if (!(fr && fr.start === nowMinute)) f.stop = { enabled: true, target: items[si.target]!.id };
+  }
+
+  // Offer an action only when `apply` yields a legal schedule, not one
+  // overlapping an internal fixed wall.
+  for (const action of ["play", "stop"] as const) {
+    if (f[action].enabled && !apply(action, items, frames, nowMinute, span).ok) f[action] = off();
   }
   return f;
 }
@@ -61,216 +83,139 @@ export function apply(
   span: Span,
 ): Result<RunPlan, RunError> {
   if (items.length === 0) return err(disabled("no items to act on"));
-  const w = items.map(toWork);
   const assigned = items.map((it) => frameOf(frames, it.id));
+  const intent = action === "play" ? playIntent(items, assigned, nowMinute) : stopIntent(items, assigned, nowMinute);
+  if (!intent) return err(disabled("action is disabled here"));
+  // Play's stop-then-play must not collapse the item it interrupts below its
+  // minimum duration; explicit Stop is free to delete a zero-length target.
+  if (action === "play" && intent.stop != null && nowMinute - assigned[intent.stop]!.start < MIN_DURATION) {
+    return err(disabled("stopping the current item would breach its minimum duration"));
+  }
 
-  const result = run(action, w, assigned, span, nowMinute);
-  if (!result.ok) return result;
-  return ok(plan(items, w));
-}
-
-function run(
-  action: RunAction,
-  w: Work[],
-  assigned: { start: number; end: number }[],
-  span: { start: number; end: number },
-  now: number,
-): Result<void, RunError> {
-  if (now < span.start) {
-    if (action !== "play") return err(disabled("only Play is enabled before the schedule start"));
-    setStart(w, 0, now);
-    normalize(w);
-    return ok(undefined);
-  }
-  if (now >= span.end) return afterEnd(action, w, now);
-  const containing = currentIdx(w, assigned, now);
-  if (containing >= 0) return within(action, w, containing, now);
-  return gap(action, w, assigned, now);
-}
-
-function afterEnd(action: RunAction, w: Work[], now: number): Result<void, RunError> {
-  const last = w.length - 1;
-  const lastFixedEnd = w[last]!.end != null;
-  if (action === "play") {
-    if (lastFixedEnd) return err(disabled("Play disabled after the schedule end (last item has a fixed end)"));
-    setStart(w, walkBack(w, last), now);
-    normalize(w);
-    return ok(undefined);
-  }
-  if (action === "stop") {
-    if (lastFixedEnd) setEnd(w, last, now);
-    else setEnd(w, walkBack(w, last), now);
-    normalize(w);
-    return ok(undefined);
-  }
-  if (lastFixedEnd) return err(disabled("Skip disabled after the schedule end"));
-  const first = walkBack(w, last);
-  const skip = first + 1;
-  if (skip > last) return err(disabled("Skip disabled (only one item in the final block)"));
-  setEnd(w, first, now);
-  setStart(w, skip, now);
-  normalize(w);
-  return ok(undefined);
-}
-
-function within(action: RunAction, w: Work[], idx: number, now: number): Result<void, RunError> {
-  const fullyFixed = w[idx]!.start != null && w[idx]!.end != null;
-  const first = fullyFixed ? idx : walkBack(w, idx);
-  if (action === "play") {
-    setStart(w, first, now);
-    normalize(w);
-    return ok(undefined);
-  }
-  if (action === "stop") {
-    setEnd(w, first, now);
-    normalize(w);
-    return ok(undefined);
-  }
-  // skip: stop the target, start the next item (disabled if it is fixed-start).
-  const skip = first + 1;
-  if (skip >= w.length || w[skip]!.start != null) return err(disabled("no next item to play"));
-  setEnd(w, first, now);
-  setStart(w, skip, now);
-  normalize(w);
-  return ok(undefined);
-}
-
-function gap(
-  action: RunAction,
-  w: Work[],
-  assigned: { start: number; end: number }[],
-  now: number,
-): Result<void, RunError> {
-  let prevFixedEnd = -1;
-  for (let i = 0; i < w.length; i++) {
-    if (assigned[i]!.end <= now && w[i]!.end != null) prevFixedEnd = i;
-  }
-  let next = -1;
-  for (let i = 0; i < w.length; i++) {
-    if (assigned[i]!.start >= now) {
-      next = i;
-      break;
-    }
-  }
-  if (action === "play") {
-    if (next < 0) return err(disabled("no next item to play"));
-    setStart(w, next, now);
-    normalize(w);
-    return ok(undefined);
-  }
-  if (action === "stop") {
-    if (prevFixedEnd < 0) return err(disabled("no previous fixed-end item to extend"));
-    setEnd(w, prevFixedEnd, now);
-    normalize(w);
-    return ok(undefined);
-  }
-  if (prevFixedEnd < 0) return err(disabled("Skip disabled in the leading gap"));
-  if (next < 0) return err(disabled("Skip disabled at the end of the schedule"));
-  setEnd(w, prevFixedEnd, now);
-  setStart(w, next, now);
-  normalize(w);
-  return ok(undefined);
-}
-
-// --- enablement ---
-
-function compute(items: LayoutItem[], frames: LayoutFrame[], now: number, span: Span): RunFlags {
-  const f: RunFlags = {
-    play: off(),
-    stop: off(),
-    skip: off(),
-  };
-  if (items.length === 0) return f;
   const w = items.map(toWork);
-  const assigned = items.map((it) => frameOf(frames, it.id));
-  const idAt = (i: number) => (i >= 0 && i < w.length ? w[i]!.id : null);
+  if (intent.stop != null) setEnd(w, intent.stop, nowMinute);
+  if (intent.start != null) setStart(w, intent.start, nowMinute);
+  normalize(w);
 
-  if (now < span.start) {
-    f.play = { enabled: true, target: idAt(0) };
-    return f;
+  const { patches, deletes } = plan(items, w);
+  const next = nextItems(items, patches, deletes);
+  const grown = settle(span, patches, next);
+  // Growth admits edges pinned past the boundary, not an internal fixed wall a
+  // run overruns. Reject those.
+  if (!feasible(next, grown)) return err(disabled("would overlap a fixed item"));
+  return ok({ patches, deletes, span: grown });
+}
+
+// Play targets the item that should run at `now`: the open first item of the
+// current dynamic block, the item after it when that first is anchored or the
+// current item is static, or the upcoming item when now sits in a gap/before.
+function playIntent(items: LayoutItem[], assigned: Frame[], now: number): Intent | null {
+  const n = items.length;
+  const cur = currentIdx(assigned, now);
+  if (cur < 0) {
+    const next = nextIdx(assigned, now);
+    if (next >= 0) return { target: next, stop: null, start: next };
+    // Past the end: treat the trailing item as the current one.
   }
-  if (now >= span.end) {
-    const last = w.length - 1;
-    if (w[last]!.end != null) {
-      f.stop = { enabled: true, target: idAt(last) };
-    } else {
-      const first = walkBack(w, last);
-      f.play = { enabled: true, target: idAt(first) };
-      f.stop = { enabled: true, target: idAt(first) };
-      if (countFinalBlock(w) > 1) f.skip = { enabled: true, target: idAt(first + 1) };
-    }
-    return f;
+  const anchor = cur >= 0 ? cur : n - 1;
+  if (isStatic(items[anchor]!.bounds)) {
+    const t = anchor + 1;
+    return t < n ? { target: t, stop: anchor, start: t } : null;
   }
-  const containing = currentIdx(w, assigned, now);
-  if (containing >= 0) {
-    const fullyFixed = w[containing]!.start != null && w[containing]!.end != null;
-    const first = fullyFixed ? containing : walkBack(w, containing);
-    const skip = first + 1;
-    f.play = { enabled: true, target: idAt(first) };
-    f.stop = { enabled: true, target: idAt(first) };
-    // Skip targets the item after the play target, blocked by its fixed start.
-    if (skip < w.length && w[skip]!.start == null) {
-      f.skip = { enabled: true, target: idAt(skip) };
-    }
-    return f;
+  const first = blockFirst(items, anchor);
+  if (items[first]!.bounds.start == null) return { target: first, stop: null, start: first };
+  const t = first + 1;
+  return t < n ? { target: t, stop: first, start: t } : null;
+}
+
+// Stop ends the current static item or the current dynamic block's first item;
+// in a gap it extends the preceding fixed-end item to now.
+function stopIntent(items: LayoutItem[], assigned: Frame[], now: number): Intent | null {
+  const cur = currentIdx(assigned, now);
+  if (cur >= 0) {
+    const anchor = isStatic(items[cur]!.bounds) ? cur : blockFirst(items, cur);
+    return { target: anchor, stop: anchor, start: null };
   }
-  // gap
-  let prev = -1;
-  for (let i = 0; i < w.length; i++) {
-    if (assigned[i]!.end <= now) prev = i;
-    else break;
+  const prev = prevFixedEndIdx(items, assigned, now);
+  return prev >= 0 ? { target: prev, stop: prev, start: null } : null;
+}
+
+// Post-action items: survivors carry their patched bounds.
+function nextItems(
+  items: LayoutItem[],
+  patches: { id: ScheduleItemId; bounds: ItemBounds }[],
+  deletes: ScheduleItemId[],
+): LayoutItem[] {
+  const patched = new Map(patches.map((p) => [p.id, p.bounds]));
+  const dropped = new Set(deletes);
+  return items
+    .filter((it) => !dropped.has(it.id))
+    .map((it) => ({ id: it.id, bounds: patched.get(it.id) ?? it.bounds }));
+}
+
+// Grow the span outward (never inward) to admit pinned edges, then to keep the
+// trailing run's minimum widths.
+function settle(span: Span, patches: { bounds: ItemBounds }[], next: LayoutItem[]): Span {
+  let start = span.start;
+  let end = span.end;
+  for (const p of patches) {
+    if (p.bounds.start != null) start = Math.min(start, p.bounds.start);
+    if (p.bounds.end != null) end = Math.max(end, p.bounds.end);
   }
-  const prevFixedEnd = prev >= 0 && w[prev]!.end != null;
-  let next = -1;
-  for (let i = 0; i < w.length; i++) {
-    if (assigned[i]!.start >= now) {
-      next = i;
-      break;
-    }
-  }
-  f.play = { enabled: next >= 0, target: next >= 0 ? idAt(next) : null };
-  f.stop = { enabled: prevFixedEnd, target: prevFixedEnd ? idAt(prev) : null };
-  const skipOk = next >= 0 && prevFixedEnd && w[next]!.start == null;
-  f.skip = { enabled: skipOk, target: skipOk ? idAt(next) : null };
-  return f;
+  start = clamp(start, FRAME_START, MAX_SCHEDULE_START);
+  end = clamp(end, start + 1, FRAME_END);
+  end = clamp(minEndToFit(next, { start, end }), end, FRAME_END);
+  return { start, end };
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
 }
 
 // --- shared helpers ---
 
-// First item of the dynamic block containing idx; a fixed end terminates the
-// previous block (checked before a fixed start).
-function walkBack(w: Work[], idx: number): number {
-  const s = w[idx]!;
-  if (s.start != null) return idx;
-  let i = idx;
-  while (i > 0) {
-    i -= 1;
-    if (w[i]!.end != null) return i + 1;
-    if (w[i]!.start != null) return i;
-  }
-  return 0;
+type Frame = { start: number; end: number };
+
+// An item is static when at least two of its start/duration/end are fixed; one
+// or none leaves it part of a dynamic block.
+function isStatic(b: ItemBounds): boolean {
+  let c = 0;
+  if (b.start != null) c++;
+  if (b.end != null) c++;
+  if (b.fixedDuration != null) c++;
+  return c >= 2;
 }
 
-// Item containing now; treats now == prev.end as "no current item" so the gap
-// branch handles the post-stop pseudo-gap.
-function currentIdx(w: Work[], assigned: { start: number; end: number }[], now: number): number {
-  const raw = assigned.findIndex((a) => now >= a.start && now < a.end);
-  if (raw < 0) return -1;
-  if (raw > 0 && w[raw - 1]!.end === now && w[raw]!.start == null) return -1;
-  return raw;
+// First item of the dynamic block containing `i`: walk left until a fixed start
+// begins the block, or the previous item (static or fixed-end) closes its own.
+function blockFirst(items: LayoutItem[], i: number): number {
+  let j = i;
+  while (j > 0) {
+    if (items[j]!.bounds.start != null) break;
+    const prev = items[j - 1]!.bounds;
+    if (isStatic(prev) || prev.end != null) break;
+    j -= 1;
+  }
+  return j;
 }
 
-function countFinalBlock(w: Work[]): number {
-  if (w.length === 0) return 0;
-  let count = 1;
-  let i = w.length;
-  while (i > 1) {
-    i -= 1;
-    if (w[i - 1]!.end != null) return count;
-    if (w[i]!.start != null) return count;
-    count += 1;
+function currentIdx(assigned: Frame[], now: number): number {
+  return assigned.findIndex((a) => now >= a.start && now < a.end);
+}
+
+function nextIdx(assigned: Frame[], now: number): number {
+  for (let i = 0; i < assigned.length; i++) {
+    if (assigned[i]!.start >= now) return i;
   }
-  return count;
+  return -1;
+}
+
+function prevFixedEndIdx(items: LayoutItem[], assigned: Frame[], now: number): number {
+  let idx = -1;
+  for (let i = 0; i < items.length; i++) {
+    if (assigned[i]!.end <= now && items[i]!.bounds.end != null) idx = i;
+  }
+  return idx;
 }
 
 // Pin start; if that would over-constrain a fixed-duration item (both edges now
@@ -293,7 +238,10 @@ function normalize(w: Work[]): void {
   }
 }
 
-function plan(items: LayoutItem[], w: Work[]): RunPlan {
+function plan(
+  items: LayoutItem[],
+  w: Work[],
+): { patches: { id: ScheduleItemId; bounds: ItemBounds }[]; deletes: ScheduleItemId[] } {
   const patches: { id: ScheduleItemId; bounds: ItemBounds }[] = [];
   const deletes: ScheduleItemId[] = [];
   for (let i = 0; i < items.length; i++) {
@@ -324,7 +272,7 @@ function toWork(it: LayoutItem): Work {
   };
 }
 
-function frameOf(frames: LayoutFrame[], id: ScheduleItemId): { start: number; end: number } {
+function frameOf(frames: LayoutFrame[], id: ScheduleItemId): Frame {
   const f = frames.find((fr) => fr.id === id);
   return f ? { start: f.start, end: f.end } : { start: 0, end: 0 };
 }

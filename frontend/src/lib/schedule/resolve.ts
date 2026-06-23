@@ -114,6 +114,16 @@ export function pin(projects: ProjectIndex, it: ScheduleItem): Partial<ScheduleI
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
+// Task reference for a split-off clone: by-name hands off to the first rank,
+// by-rank advances to the next when present.
+export function splitTaskRef(projects: ProjectIndex, it: ScheduleItem): { taskId: TaskId | null; taskRank: number } {
+  if (it.taskId != null) return { taskId: null, taskRank: 1 };
+  const projectId = it.projectId ?? projects.pickByRank(it.projectRank);
+  const next = it.taskRank + 1;
+  const hasNext = projectId != null && projects.pickTaskByRank(projectId, next) != null;
+  return { taskId: null, taskRank: hasNext ? next : it.taskRank };
+}
+
 // Mode.Date(date): no live clock.
 export function date(
   projects: ProjectIndex,

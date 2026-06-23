@@ -3,6 +3,25 @@
 Personal scheduling / task-prioritization app. Multi-user, offline-first PWA.
 A "dumb" Rust data server syncs rows; all domain logic lives client-side in TypeScript.
 
+## Conventions
+
+These conventions are mandatory and take precedence over your defaults. Follow them
+strictly in every change. Treat a violation as a bug to fix before finishing, not a
+stylistic preference. Comment rules in particular are violated often: re-read them
+before writing any comment.
+
+- Keep the codebase lean. Prefer deleting over adding. When a change makes code
+  obsolete (dead functions, replaced wrappers, stale branches), remove it.
+- Write a comment only to explain genuinely tricky logic. Never comment obvious code.
+- Never write a comment that narrates what the code does or explains the change you
+  are making (e.g. "// increment counter", "// now also handle X").
+- Keep every comment to 20 words or fewer unless it is absolutely necessary to use
+  a few more to capture particularly tricky logic.
+- Never leave commented-out code or TODOs behind a change.
+- Use branded ids/`OrderKey`, discriminated unions, and the small `Result<T,E>`.
+  Import area barrels as namespaces (`import * as layout from "@lib/schedule"`).
+  Keep `lib/` pure (no preact/data/state/ui); enforced by ESLint.
+
 ## Stack
 
 - Backend: Rust (edition 2021), `axum` 0.8, `sqlx` 0.9 (SQLite). No domain logic:
@@ -57,17 +76,6 @@ Dev: run the backend (`cargo run --bin schedule`) and `npm run dev` in two
 terminals. Vite proxies `/api` to `:3000` so cookies behave as in production.
 Required server env: `DATABASE_URL`, `APP_SECRET` (64+ hex chars; ephemeral if
 unset). See `README.md` for the full env-var table.
-
-## Conventions
-
-- Keep the codebase lean. Prefer deleting over adding. When a change makes code
-  obsolete (dead functions, replaced wrappers, stale branches), remove it.
-- Comments are sparse: only annotate genuinely tricky logic, not obvious code.
-- Comments are concise: 20 words max. No change-explaining or narration comments.
-- Don't leave commented-out code or TODOs behind a change.
-- TypeScript: branded ids/`OrderKey`, discriminated unions, a small `Result<T,E>`.
-  Import area barrels as namespaces (`import * as layout from "@lib/schedule"`).
-  `lib/` stays pure (no preact/data/state/ui); enforced by ESLint.
 
 ## Gotchas
 

@@ -95,21 +95,70 @@ export function splitItem(scheduleId: ScheduleId, minute: number): ScheduleItemI
   if (!plan.ok) return null;
   const current = rows.find((r) => r.id === plan.value.id);
   if (!current) return null;
+  const projects = projectIndex.value;
   const id = newId();
   const clone: ScheduleItem = {
     ...current,
+    ...(current.useInline ? {} : resolve.splitTaskRef(projects, current)),
     id,
     bounds: plan.value.newBounds,
     position: positionAfter(rows, plan.value.id, null),
     rev: localRev(),
   };
-  // Pin the old item's identity; the clone keeps the original reference.
-  const pinned = resolve.pin(projectIndex.value, current);
+  // Pin the old item's identity; the clone moves on to the next task.
+  const pinned = resolve.pin(projects, current);
   commit(
     [upsertItem({ ...current, ...pinned, bounds: plan.value.bounds }), upsertItem(clone)],
     CTX,
   );
   return id;
+}
+
+// Toggle the completion of the task a project-mode item resolves to. Completing
+// also fixes the item on that task/project by name and, when `splitMinute` lands
+// strictly inside the item, splits it so the remainder hands off to the next task.
+export function toggleItemTaskComplete(scheduleId: ScheduleId, id: ScheduleItemId, splitMinute: number | null): void {
+  const rows = sortedItems(scheduleId);
+  const idx = rows.findIndex((r) => r.id === id);
+  const current = rows[idx];
+  if (!current) return;
+  const projects = projectIndex.value;
+  const payload = resolve.item(projects, current);
+  if (payload.kind !== "task") return;
+  const task = projects.task(payload.taskId);
+  if (!task) return;
+
+  if (task.completedAt != null) {
+    commit([{ kind: "upsert", model: { kind: "task", ...task, completedAt: null, rev: localRev() } }], CTX);
+    return;
+  }
+
+  const ops: Operation[] = [
+    { kind: "upsert", model: { kind: "task", ...task, completedAt: Date.now(), rev: localRev() } },
+  ];
+  const pinned: Partial<ScheduleItem> = { projectId: payload.projectId, taskId: payload.taskId };
+  const span = scheduleSpan(scheduleId);
+  const layoutItems = rows.map(toLayoutItem);
+  const plan =
+    span && splitMinute != null ? split.splitAt(layoutItems, layout.compute(layoutItems, span), splitMinute) : null;
+  // Skip the hand-off split when the next item already covers this project's tasks.
+  const next = rows[idx + 1];
+  const nextPayload = next ? resolve.item(projects, next) : null;
+  const nextSameProject = nextPayload?.kind === "task" && nextPayload.projectId === payload.projectId;
+  if (plan?.ok && plan.value.id === id && !nextSameProject) {
+    const clone: ScheduleItem = {
+      ...current,
+      ...resolve.splitTaskRef(projects, current),
+      id: newId(),
+      bounds: plan.value.newBounds,
+      position: positionAfter(rows, id, null),
+      rev: localRev(),
+    };
+    ops.push(upsertItem({ ...current, ...pinned, bounds: plan.value.bounds }), upsertItem(clone));
+  } else {
+    ops.push(upsertItem({ ...current, ...pinned }));
+  }
+  commit(ops, CTX);
 }
 
 export function patchItem(id: ScheduleItemId, patch: Partial<ScheduleItem>): void {
@@ -331,7 +380,7 @@ export function applyReorder(
   commit(ops, CTX);
 }
 
-// Play/skip/stop at the cursor minute. Returns whether the action was enabled.
+// Play/stop at the cursor minute. Returns whether the action was enabled.
 export function runAction(scheduleId: ScheduleId, action: run.RunAction, nowMinute: number): boolean {
   const span = scheduleSpan(scheduleId);
   if (!span) return false;
@@ -342,7 +391,7 @@ export function runAction(scheduleId: ScheduleId, action: run.RunAction, nowMinu
   if (!plan.ok) return false;
   const byId = new Map(rows.map((r) => [r.id, r]));
   const ops: Operation[] = [];
-  // Pin the played item (Play's target / Skip's next) against later rank shifts.
+  // Pin the played item (Play's target) against later rank shifts.
   const played = action === "stop" ? null : run.flags(layoutItems, frames, nowMinute, span)[action].target;
   for (const p of plan.value.patches) {
     const row = byId.get(p.id);
@@ -353,25 +402,10 @@ export function runAction(scheduleId: ScheduleId, action: run.RunAction, nowMinu
   for (const id of plan.value.deletes) {
     ops.push({ kind: "delete", ref: { kind: "scheduleItem", id } });
   }
-  // Grow the window to admit an anchor a Play/Stop pinned past the boundary, then
-  // out further so the trailing items keep at least their minimum widths.
+  // Commit the span run.apply grew to admit the pinned edges, when it changed.
   const sched = effectiveSchedules.value.find((s) => s.id === scheduleId);
-  if (sched) {
-    let bounds = { start: sched.start, end: sched.end };
-    for (const p of plan.value.patches) {
-      const grown = grownBounds({ ...sched, ...bounds }, p.bounds);
-      if (grown) bounds = grown;
-    }
-    const patched = new Map(plan.value.patches.map((p) => [p.id, p.bounds]));
-    const deleted = new Set(plan.value.deletes);
-    const nextItems = layoutItems
-      .filter((it) => !deleted.has(it.id))
-      .map((it) => ({ id: it.id, bounds: patched.get(it.id) ?? it.bounds }));
-    const end = clampInt(layout.minEndToFit(nextItems, bounds), bounds.start + 1, layout.FRAME_END);
-    if (end > bounds.end) bounds = { ...bounds, end };
-    if (bounds.start !== sched.start || bounds.end !== sched.end) {
-      ops.push(scheduleUpsert({ ...sched, ...bounds }));
-    }
+  if (sched && (plan.value.span.start !== sched.start || plan.value.span.end !== sched.end)) {
+    ops.push(scheduleUpsert({ ...sched, start: plan.value.span.start, end: plan.value.span.end }));
   }
   if (ops.length > 0) commit(ops, CTX);
   return true;

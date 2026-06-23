@@ -17,7 +17,6 @@ import {
   CloseIcon,
   PlayIcon,
   PlusIcon,
-  SkipIcon,
   StopIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -83,13 +82,11 @@ interface ResizeState {
 const HOLD_MS = 500;
 const RUN_ICON: Record<RunAction, JSX.Element> = {
   play: <PlayIcon />,
-  skip: <SkipIcon />,
   stop: <StopIcon />,
 };
 
 const RUN_BADGE_LABEL: Record<RunAction, string> = {
   play: "Start this item",
-  skip: "Skip to this item",
   stop: "Stop this item",
 };
 
@@ -280,28 +277,36 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
     bumpFrame((f) => f + 1);
   }
 
-  // On entering the schedule (mount via tab switch / reload), pan the live cursor
-  // into view. Once per schedule, after the viewport is measured.
+  // Pan to the play head (cursor, else now); its edge pin also frames the current item.
+  function panToCurrent(): void {
+    if (displayCursor != null) panToMinute(displayCursor);
+  }
+
+  // Pan the play head into view once per schedule, after the viewport is measured.
   useEffect(() => {
-    if (!cursorEnabled || now == null || fit <= 0 || viewportH <= 0) return;
+    if (displayCursor == null || fit <= 0 || viewportH <= 0) return;
     if (entryPannedFor.current === scheduleId) return;
     entryPannedFor.current = scheduleId;
-    panToMinute(now);
+    panToCurrent();
   }, [viewportH, fit, cursorEnabled, scheduleId]);
 
-  // Regaining window focus re-pans the play head into view, like a tab switch.
+  // Re-pan on returning to the app. Android PWAs may fire visibilitychange but not focus.
   useEffect(() => {
-    const onFocus = (): void => uistate.panToCursor();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    const onVisible = (): void => {
+      if (document.visibilityState === "visible") uistate.panToCursor();
+    };
+    window.addEventListener("focus", uistate.panToCursor);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", uistate.panToCursor);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
-  // An explicit request (window focus, or e.g. after a split) re-pans the play
-  // head into view.
+  // A stable nonce bridges one-shot requests (app return, split) so the pan reads fresh layout.
   const cursorPanNonce = uistate.cursorPanRequest.value;
   useEffect(() => {
-    if (cursorPanNonce === 0 || displayCursor == null) return;
-    panToMinute(displayCursor);
+    if (cursorPanNonce !== 0) panToCurrent();
   }, [cursorPanNonce]);
 
   useEffect(() => {
@@ -809,6 +814,7 @@ export function Timeline({ view, rawById, scheduleId, cursorEnabled, flags, inse
                 selected={selectedId === item.id}
                 dragging={!!isDragged && (drag.moved || drag.touch)}
                 onSelect={(focus) => select(item.id, focus)}
+                onToggleTask={() => scheduleOps.toggleItemTaskComplete(scheduleId, item.id, displayCursor)}
                 onPointerDown={onItemDown(item)}
                 onResizeStart={(edge, e) =>
                   onResizeDown({ kind: "item", id: item.id, edge }, edge === "start" ? item.start : item.end)(e)
@@ -905,7 +911,7 @@ interface BadgeGroup {
 function mediaBadges(view: ScheduleView, flags: RunFlags | null, now: number | null): BadgeGroup[] {
   if (!flags || now == null) return [];
   const byTarget = new Map<string, RunAction[]>();
-  for (const kind of ["play", "skip", "stop"] as const) {
+  for (const kind of ["play", "stop"] as const) {
     const f = flags[kind];
     if (f.enabled && f.target != null) {
       const arr = byTarget.get(f.target) ?? [];

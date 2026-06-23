@@ -4,12 +4,12 @@ import { type Result, ok, err } from "@lib/result";
 
 import { MIN_DURATION, type LayoutFrame, type LayoutItem } from "./layout";
 
-// Cut the item under the cursor in two abutting halves. The current item keeps
-// its start; its end mirrors the start anchor's fixedness (fixed -> pinned at the
-// cursor). The clone keeps the original end and mirrors the original end anchor's
-// fixedness. Durations divide by the cursor's position: a fixed duration splits
-// its length, an elastic one splits its target weight. Pure: returns the patched
-// current bounds + the clone's bounds; the caller mints the id and order key.
+// Cut the item under the cursor in two abutting halves without introducing any
+// new fixed edges. The first half keeps the original start, the second keeps the
+// original end; the cut becomes a fixed edge only when the original pinned both
+// ends. A fixed duration splits its length across both halves; an elastic one
+// splits its target weight. Pure: returns the patched current bounds + the
+// clone's bounds; the caller mints the id and order key.
 
 export interface ScheduleSplit {
   id: ScheduleItemId;
@@ -35,19 +35,24 @@ export function splitAt(items: LayoutItem[], frames: LayoutFrame[], cursor: numb
   if (!item) return err({ kind: "disabled", reason: "no item to split" });
 
   const b = item.bounds;
+  console.log("frame", frame);
+  console.log("at", at);
   const frac = (at - frame.start) / (frame.end - frame.start);
+  // Pin the cut only when both ends were fixed; otherwise it'd be a new fixed edge.
+  const atCut = b.start != null && b.end != null ? at : null;
   const cur: ItemBounds = {
     start: b.start,
-    end: b.start != null ? at : null,
+    end: atCut,
     fixedDuration: null,
     durationTarget: b.durationTarget,
   };
   const nw: ItemBounds = {
-    start: b.end != null ? at : null,
+    start: atCut,
     end: b.end,
     fixedDuration: null,
     durationTarget: b.durationTarget,
   };
+
   if (b.fixedDuration != null) {
     const [a, c] = cut(b.fixedDuration, frac);
     cur.fixedDuration = a;

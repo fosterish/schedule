@@ -60,20 +60,25 @@ describe("split.splitAt", () => {
     expect(plan.newBounds.fixedDuration).toBeNull();
   });
 
-  it("pins the current's end at the cursor when its start is fixed, clone stays elastic", () => {
+  it("keeps the fixed start on the first half and leaves the second completely free", () => {
     const items = [item("a", { start: 480, end: null, fixedDuration: null, durationTarget: 60 })];
     const plan = planFor(items, 900);
-    expect(plan.bounds).toEqual({ start: 480, end: 900, fixedDuration: null, durationTarget: 30 });
+    expect(plan.bounds).toEqual({ start: 480, end: null, fixedDuration: null, durationTarget: 30 });
     expect(plan.newBounds).toEqual({ start: null, end: null, fixedDuration: null, durationTarget: 30 });
   });
 
-  it("pins the clone's start at the cursor when the original end is fixed", () => {
+  it("leaves the first half completely free and keeps the fixed end on the second", () => {
     const items = [item("a", { start: null, end: 1320, fixedDuration: null, durationTarget: 60 })];
     const plan = planFor(items, 900); // a fills [480,1320], midpoint 900
-    expect(plan.bounds.start).toBeNull();
-    expect(plan.bounds.end).toBeNull();
-    expect(plan.newBounds.start).toBe(900);
-    expect(plan.newBounds.end).toBe(1320);
+    expect(plan.bounds).toEqual({ start: null, end: null, fixedDuration: null, durationTarget: 30 });
+    expect(plan.newBounds).toEqual({ start: null, end: 1320, fixedDuration: null, durationTarget: 30 });
+  });
+
+  it("combines a fixed end with a fixed duration across both halves", () => {
+    const items = [item("a", { start: null, end: 1320, fixedDuration: 120, durationTarget: 60 })];
+    const plan = planFor(items, 1260); // a is rigid [1200,1320], cut at the midpoint
+    expect(plan.bounds).toEqual({ start: null, end: null, fixedDuration: 60, durationTarget: 60 });
+    expect(plan.newBounds).toEqual({ start: null, end: 1320, fixedDuration: 60, durationTarget: 60 });
   });
 
   it("divides a fixed duration by the cut", () => {

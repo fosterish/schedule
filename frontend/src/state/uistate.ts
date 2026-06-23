@@ -24,8 +24,8 @@ export const focusProjectId = signal<ProjectId | null>(null);
 export const focusTaskId = signal<TaskId | null>(null);
 
 // Explicit time-cursor minute: the schedule's play head. null = live (snaps to
-// `now` in today mode) / hidden (date & template modes). Run actions (play/skip/
-// stop) and their enablement evaluate here, so dragging the cursor steers them.
+// `now` in today mode) / hidden (date & template modes). Run actions (play/stop)
+// and their enablement evaluate here, so dragging the cursor steers them.
 export const cursorMinute = signal<number | null>(null);
 
 // Bumped to ask the timeline to pan the selected item back into view after a
@@ -36,8 +36,7 @@ export function panToSelected(): void {
   panRequest.value++;
 }
 
-// Bumped to ask the timeline to pan/zoom the play head (the cursor, or now) into
-// view, reusing the entry pan — e.g. after splitting the item under the cursor.
+// Asks the timeline to pan the play head into view: on app return, or after an edit moved it.
 export const cursorPanRequest = signal(0);
 
 export function panToCursor(): void {

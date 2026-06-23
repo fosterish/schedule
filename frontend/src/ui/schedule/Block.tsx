@@ -36,6 +36,8 @@ interface Props {
   selected: boolean;
   dragging: boolean;
   onSelect: (focus: Focus) => void;
+  // Complete (or reopen) the resolved task and, when the cursor sits inside, split.
+  onToggleTask: () => void;
   onPointerDown?: (e: JSX.TargetedPointerEvent<HTMLDivElement>) => void;
   onResizeStart?: (edge: "start" | "end", e: JSX.TargetedPointerEvent<HTMLDivElement>) => void;
 }
@@ -54,6 +56,7 @@ export function Block({
   selected,
   dragging,
   onSelect,
+  onToggleTask,
   onPointerDown,
   onResizeStart,
 }: Props): JSX.Element {
@@ -107,7 +110,7 @@ export function Block({
         if (!selected) onSelect(null);
       }}
     >
-      <div class={headCls}>{head(item, raw, selected, focus, onSelect)}</div>
+      <div class={headCls}>{head(item, raw, selected, focus, onSelect, onToggleTask)}</div>
 
       {selected && raw && (
         <ItemEditor raw={raw} frameStart={item.start} frameEnd={item.end} />
@@ -181,6 +184,7 @@ function head(
   selected: boolean,
   focus: Focus,
   onSelect: (focus: Focus) => void,
+  onToggleTask: () => void,
 ): JSX.Element {
   if (selected && raw) {
     const onDelete = (): void => scheduleOps.deleteItem(raw.id);
@@ -190,7 +194,7 @@ function head(
       <ProjectHead item={item} raw={raw} onDelete={onDelete} />
     );
   }
-  return <CollapsedHead item={item} onSelect={onSelect} />;
+  return <CollapsedHead item={item} onSelect={onSelect} onToggleTask={onToggleTask} />;
 }
 
 // Static text for a collapsed item; clicking selects and focuses the field it hit
@@ -198,11 +202,14 @@ function head(
 function CollapsedHead({
   item,
   onSelect,
+  onToggleTask,
 }: {
   item: ScheduleViewItem;
   onSelect: (focus: Focus) => void;
+  onToggleTask: () => void;
 }): JSX.Element {
   const desc = description(item);
+  const isTask = item.payload.kind === "task";
   const completed = item.payload.kind === "task" && item.payload.completed;
   const titleCls = completed ? `${s.titleStatic} ${s.titleCompleted}` : s.titleStatic!;
   const { title, subtitle } = headText(item);
@@ -211,7 +218,26 @@ function CollapsedHead({
       <div class={s.headRow}>
         <div class={titleCls} onClick={pickFocus(() => onSelect("title"))}>
           {title}
-          {subtitle != null && <span class={s.subtitleStatic}>{subtitle}</span>}
+          {subtitle != null && (
+            <span class={s.subtitleStatic}>
+              {isTask && (
+                <input
+                  type="checkbox"
+                  class={s.taskCheck}
+                  checked={completed}
+                  title={completed ? "Mark task incomplete" : "Mark task complete"}
+                  aria-label={completed ? "Mark task incomplete" : "Mark task complete"}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onToggleTask();
+                  }}
+                />
+              )}
+              {subtitle}
+            </span>
+          )}
         </div>
       </div>
       {desc != null && desc.trim() !== "" && (

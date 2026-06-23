@@ -100,19 +100,12 @@ export function reinsertByValue(
 // leeway; growing outward is always feasible, up to the absolute ceiling.
 export function clampScheduleStart(items: layout.LayoutItem[], span: layout.Span, desired: number): number {
   const target = clampInt(desired, layout.FRAME_START, Math.min(layout.MAX_SCHEDULE_START, span.end - 1));
-  return furthestFeasible(span.start, target, (v) => spanFeasible(items, { start: v, end: span.end }));
+  return furthestFeasible(span.start, target, (v) => layout.feasible(items, { start: v, end: span.end }));
 }
 
 export function clampScheduleEnd(items: layout.LayoutItem[], span: layout.Span, desired: number): number {
   const target = clampInt(desired, span.start + 1, layout.FRAME_END);
-  return furthestFeasible(span.end, target, (v) => spanFeasible(items, { start: span.start, end: v }));
-}
-
-// A span fits when every item lays out validly AND the trailing run still fits
-// within it. `validate` alone misses an unbounded trailing rigid/minimum run
-// overflowing the end (no fixed wall to overlap), so check minEndToFit too.
-function spanFeasible(items: layout.LayoutItem[], span: layout.Span): boolean {
-  return layout.minEndToFit(items, span) <= span.end && layout.validate(items, layout.compute(items, span), span).ok;
+  return furthestFeasible(span.end, target, (v) => layout.feasible(items, { start: span.start, end: v }));
 }
 
 // --- internals ---
@@ -139,7 +132,7 @@ function slideParam(
     const cand = mutate(v);
     const order = withCandidate(items, index, cand);
     const sp = spanFor(items, index, span, cand);
-    return spanFeasible(order, sp);
+    return layout.feasible(order, sp);
   };
   const value = furthestFeasible(Math.round(current), Math.round(desired), feasible);
   const bounds = mutate(value);

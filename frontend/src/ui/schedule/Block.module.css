@@ -122,11 +122,18 @@
   word-break: break-word;
 }
 
-/* The task line under a project-backed item's title. */
+/* The task line under a project-backed item's title, with its completion box. */
 .subtitleStatic {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 400;
   font-size: var(--font-medium);
+}
+
+.taskCheck {
+  flex: none;
+  cursor: pointer;
 }
 
 /* Time range + duration, pinned out of flow to the item's upper-right corner;
